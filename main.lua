@@ -1,4 +1,4 @@
-ocal ffi = require("ffi")
+local ffi = require("ffi")
 
 -- 1. FFI DEFINITIONS (High-Performance Memory Layout)
 ffi.cdef[[
