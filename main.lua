@@ -1,4 +1,4 @@
-local ffi = require("ffi")
+ocal ffi = require("ffi")
 
 -- 1. FFI DEFINITIONS (High-Performance Memory Layout)
 ffi.cdef[[
@@ -68,18 +68,18 @@ end
 -- Inline-ready projection
 local function ProjectAndDraw(wx, wy, wz, color)
     local dx, dy, dz = wx - Cam.pos.x, wy - Cam.pos.y, wz - Cam.pos.z
-    
+
     -- Distance Culling (Square check is faster than sqrt)
     if (dx*dx + dy*dy + dz*dz) > MAX_DIST_SQ then return end
 
     local cz = dx * Cam.fw.x + dy * Cam.fw.y + dz * Cam.fw.z
-    if cz > 0.5 then 
+    if cz > 0.5 then
         local cx = dx * Cam.rt.x + dy * Cam.rt.y + dz * Cam.rt.z
         local cy = dx * Cam.up.x + dy * Cam.up.y + dz * Cam.up.z
         local f = Cam.fov / cz
         local sx = math.floor((CANVAS_W / 2) + (cx * f))
         local sy = math.floor((CANVAS_H / 2) + (cy * f))
-        
+
         if sx >= 0 and sx < CANVAS_W and sy >= 0 and sy < CANVAS_H then
             local pIdx = sy * CANVAS_W + sx
             if cz < ZBuffer[pIdx] then
@@ -129,11 +129,11 @@ end
 function love.update(dt)
     -- Camera Movement
     local s = 30 * dt
-    if love.keyboard.isDown("w") then 
-        Cam.pos.x = Cam.pos.x + Cam.fw.x*s; Cam.pos.y = Cam.pos.y + Cam.fw.y*s; Cam.pos.z = Cam.pos.z + Cam.fw.z*s 
+    if love.keyboard.isDown("w") then
+        Cam.pos.x = Cam.pos.x + Cam.fw.x*s; Cam.pos.y = Cam.pos.y + Cam.fw.y*s; Cam.pos.z = Cam.pos.z + Cam.fw.z*s
     end
-    if love.keyboard.isDown("s") then 
-        Cam.pos.x = Cam.pos.x - Cam.fw.x*s; Cam.pos.y = Cam.pos.y - Cam.fw.y*s; Cam.pos.z = Cam.pos.z - Cam.fw.z*s 
+    if love.keyboard.isDown("s") then
+        Cam.pos.x = Cam.pos.x - Cam.fw.x*s; Cam.pos.y = Cam.pos.y - Cam.fw.y*s; Cam.pos.z = Cam.pos.z - Cam.fw.z*s
     end
     if love.keyboard.isDown("d") then Cam.pos.x = Cam.pos.x + Cam.rt.x*s; Cam.pos.z = Cam.pos.z + Cam.rt.z*s end
     if love.keyboard.isDown("a") then Cam.pos.x = Cam.pos.x - Cam.rt.x*s; Cam.pos.z = Cam.pos.z - Cam.rt.z*s end
