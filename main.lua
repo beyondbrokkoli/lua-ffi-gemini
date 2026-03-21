@@ -138,7 +138,114 @@ local function ProjectToScreen(wx, wy, wz, out_p)
     out_p.z = cz
     out_p.valid = true
 end
+-- ==========================================
+-- SHAPE GENERATORS
+-- ==========================================
 
+local function CreateCube(cx, cy, cz, size)
+    local s = size * 0.5
+    local cube = CreateTriObject(cx, cy, cz, 8, 12)
+    local v, t = cube.verts, cube.tris
+
+    -- 8 Vertices
+    v[0] = {x=-s, y=-s, z=-s}; v[1] = {x= s, y=-s, z=-s}
+    v[2] = {x= s, y= s, z=-s}; v[3] = {x=-s, y= s, z=-s}
+    v[4] = {x=-s, y=-s, z= s}; v[5] = {x= s, y=-s, z= s}
+    v[6] = {x= s, y= s, z= s}; v[7] = {x=-s, y= s, z= s}
+
+    -- 12 Triangles (CCW Winding for correct normals)
+    local c1, c2, c3 = 0xFFEE4444, 0xFF44EE44, 0xFF4444EE
+    local c4, c5, c6 = 0xFFEEEE44, 0xFFEE44EE, 0xFF44EEEE
+
+    -- Front
+    t[0] = {v1=0, v2=2, v3=1, color=c1}; t[1] = {v1=0, v2=3, v3=2, color=c1}
+    -- Back
+    t[2] = {v1=5, v2=7, v3=4, color=c2}; t[3] = {v1=5, v2=6, v3=7, color=c2}
+    -- Top
+    t[4] = {v1=3, v2=6, v3=2, color=c3}; t[5] = {v1=3, v2=7, v3=6, color=c3}
+    -- Bottom
+    t[6] = {v1=4, v2=1, v3=5, color=c4}; t[7] = {v1=4, v2=0, v3=1, color=c4}
+    -- Right
+    t[8] = {v1=1, v2=6, v3=5, color=c5}; t[9] = {v1=1, v2=2, v3=6, color=c5}
+    -- Left
+    t[10]= {v1=4, v2=3, v3=0, color=c6}; t[11]= {v1=4, v2=7, v3=3, color=c6}
+
+    return cube
+end
+
+local function CreateIcosahedron(cx, cy, cz, size)
+    local ico = CreateTriObject(cx, cy, cz, 12, 20)
+    local v, t = ico.verts, ico.tris
+    local phi = (1.0 + math.sqrt(5.0)) / 2.0
+
+    -- 12 Vertices based on orthogonal rectangles
+    local verts = {
+        {-1,  phi,  0}, { 1,  phi,  0}, {-1, -phi,  0}, { 1, -phi,  0},
+        { 0, -1,  phi}, { 0,  1,  phi}, { 0, -1, -phi}, { 0,  1, -phi},
+        { phi,  0, -1}, { phi,  0,  1}, {-phi,  0, -1}, {-phi,  0,  1}
+    }
+
+    for i=0, 11 do
+        v[i] = {x = verts[i+1][1]*size, y = verts[i+1][2]*size, z = verts[i+1][3]*size}
+    end
+
+    -- 20 Triangles
+    local indices = {
+        {0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11},
+        {1, 5, 9}, {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
+        {3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8}, {3, 8, 9},
+        {4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7}, {9, 8, 1}
+    }
+
+    local c1, c2 = 0xFF00FFCC, 0xFF0088AA
+    for i=0, 19 do
+        local color = (i % 2 == 0) and c1 or c2
+        -- Reverse winding order to match your backface culling
+        t[i] = {v1=indices[i+1][1], v2=indices[i+1][3], v3=indices[i+1][2], color=color}
+    end
+
+    return ico
+end
+
+local function CreateUVSphere(cx, cy, cz, radius, rings, sectors)
+    local vCount = (rings + 1) * (sectors + 1)
+    local tCount = rings * sectors * 2
+    local sph = CreateTriObject(cx, cy, cz, vCount, tCount)
+
+    local vIdx, tIdx = 0, 0
+
+    -- Generate Vertices
+    for i = 0, rings do
+        local phi = (i / rings) * math.pi
+        for j = 0, sectors do
+            local theta = (j / sectors) * math.pi * 2
+            sph.verts[vIdx] = {
+                x = radius * math.sin(phi) * math.cos(theta),
+                y = radius * math.cos(phi),
+                z = radius * math.sin(phi) * math.sin(theta)
+            }
+            vIdx = vIdx + 1
+        end
+    end
+
+    -- Generate Triangles
+    local c1, c2 = 0xFFFF5555, 0xFFAA2222
+    for i = 0, rings - 1 do
+        for j = 0, sectors - 1 do
+            local a = i * (sectors + 1) + j
+            local b = a + sectors + 1
+            local c = a + 1
+            local d = b + 1
+
+            local color = ((i+j) % 2 == 0) and c1 or c2
+
+            sph.tris[tIdx] = {v1=a, v2=c, v3=b, color=color}; tIdx = tIdx + 1
+            sph.tris[tIdx] = {v1=b, v2=c, v3=d, color=color}; tIdx = tIdx + 1
+        end
+    end
+
+    return sph
+end
 -- ==========================================
 -- 6. LÖVE CALLBACKS
 -- ==========================================
@@ -147,25 +254,21 @@ function love.load()
     ReinitBuffers(startW, startH)
     love.window.setMode(CANVAS_W, CANVAS_H, {resizable=true})
 
-    Cam.pos = {x=32, y=35, z=-20}
+    -- Pull camera back a bit to see everything
+    Cam.pos = {x=32, y=35, z=-50}
 
+    -- 1. The Classic Torus
     local segs, sides = 32, 16
-    local tor = CreateTriObject(32, 35, 32, segs*sides, segs*sides*2)
+    local tor = CreateTriObject(0, 35, 0, segs*sides, segs*sides*2)
     local R, r, vIdx, tIdx = 12, 5, 0, 0
-
     for i=0, segs-1 do
         local th = (i/segs) * math.pi * 2
         for j=0, sides-1 do
             local ph = (j/sides) * math.pi * 2
-            tor.verts[vIdx] = {
-                x = (R + r * cos(ph)) * cos(th),
-                y = r * sin(ph),
-                z = (R + r * cos(ph)) * sin(th)
-            }
+            tor.verts[vIdx] = {x=(R+r*math.cos(ph))*math.cos(th), y=r*math.sin(ph), z=(R+r*math.cos(ph))*math.sin(th)}
             vIdx = vIdx + 1
         end
     end
-
     for i=0, segs-1 do
         local i_next = (i+1)%segs
         for j=0, sides-1 do
@@ -175,6 +278,15 @@ function love.load()
             tor.tris[tIdx] = {v1=a, v2=d, v3=c, color=0xFFAA44DD}; tIdx = tIdx + 1
         end
     end
+
+    -- 2. Add the Platonic Cube
+    CreateCube(32, 35, 32, 15)
+
+    -- 3. Add the Icosahedron
+    CreateIcosahedron(64, 35, 0, 10)
+
+    -- 4. Add the UV Sphere
+    CreateUVSphere(32, 35, -32, 12, 20, 20)
 end
 
 function love.update(dt)
