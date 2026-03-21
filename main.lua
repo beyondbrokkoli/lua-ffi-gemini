@@ -22,6 +22,9 @@ local ScreenBuffer, ScreenPtr, ZBuffer, ScreenImage
 local Cam = ffi.new("Entity")
 local TriObjects = {}
 
+-- NEW: Track whether the mouse is locked to the game
+local isMouseCaptured = false
+
 local resizeTimer = 0
 local pendingResize = false
 
@@ -138,10 +141,10 @@ local function ProjectToScreen(wx, wy, wz, out_p)
     out_p.z = cz
     out_p.valid = true
 end
+
 -- ==========================================
 -- SHAPE GENERATORS
 -- ==========================================
-
 local function CreateCube(cx, cy, cz, size)
     local s = size * 0.5
     local cube = CreateTriObject(cx, cy, cz, 8, 12)
@@ -246,6 +249,7 @@ local function CreateUVSphere(cx, cy, cz, radius, rings, sectors)
 
     return sph
 end
+
 -- ==========================================
 -- 6. LÖVE CALLBACKS
 -- ==========================================
@@ -307,11 +311,13 @@ function love.update(dt)
     if love.keyboard.isDown("e") then Cam.pos.y = Cam.pos.y - s end
     if love.keyboard.isDown("q") then Cam.pos.y = Cam.pos.y + s end
 
+    -- Existing Keyboard Rotation (Always active as fallback)
     local rotSpeed = 2 * dt
     if love.keyboard.isDown("left")  then Cam.yaw = Cam.yaw - rotSpeed end
     if love.keyboard.isDown("right") then Cam.yaw = Cam.yaw + rotSpeed end
     if love.keyboard.isDown("up")    then Cam.pitch = Cam.pitch - rotSpeed end
     if love.keyboard.isDown("down")  then Cam.pitch = Cam.pitch + rotSpeed end
+
     Cam.pitch = max(-1.56, min(1.56, Cam.pitch))
 
     UpdateBasis(Cam)
@@ -382,6 +388,10 @@ function love.draw()
     -- Reset to standard blend mode for drawing text so it doesn't look weird
     love.graphics.setBlendMode("alpha")
     love.graphics.print("ULTIMA PLATIN | PTR ARITHMETIC | FPS: "..love.timer.getFPS(), 10, 10)
+
+    -- NEW: Status indicator for the mouse
+    local status = isMouseCaptured and "MOUSE LOCKED (J to unlock)" or "MOUSE FREE (J to lock)"
+    love.graphics.print(status, 10, 30)
 end
 
 function love.resize(w, h)
@@ -392,7 +402,19 @@ end
 function love.keypressed(key)
     if key == "f" then
         love.window.setFullscreen(not love.window.getFullscreen())
+    elseif key == "j" then
+        -- NEW: Toggle the state and update relative mode
+        isMouseCaptured = not isMouseCaptured
+        love.mouse.setRelativeMode(isMouseCaptured)
     elseif key == "escape" then
         love.event.quit()
+    end
+end
+
+function love.mousemoved(x, y, dx, dy)
+    if isMouseCaptured then
+        local sensitivity = 0.002
+        Cam.yaw = Cam.yaw + (dx * sensitivity)
+        Cam.pitch = Cam.pitch + (dy * sensitivity)
     end
 end
