@@ -11,10 +11,8 @@ ffi.cdef[[
     typedef struct { float x, y, z; bool valid; } ProjectOut;
 ]]
 
--- Localizing hot functions for LuaJIT performance
 local floor, ceil, max, min = math.floor, math.ceil, math.max, math.min
 local sqrt, cos, sin = math.sqrt, math.cos, math.sin
-local abs = math.abs
 
 -- ==========================================
 -- 2. GLOBAL STATE & BUFFERS
@@ -24,11 +22,9 @@ local ScreenBuffer, ScreenPtr, ZBuffer, ScreenImage
 local Cam = ffi.new("Entity")
 local TriObjects = {}
 
-local Z_FAR = 100000
 local resizeTimer = 0
 local pendingResize = false
 
--- SINGLE POINT of truth for memory and projection constants
 local function ReinitBuffers(w, h)
     CANVAS_W, CANVAS_H = w, h
     HALF_W, HALF_H = w * 0.5, h * 0.5
@@ -39,7 +35,6 @@ local function ReinitBuffers(w, h)
     ScreenPtr = ffi.cast("uint32_t*", ScreenBuffer:getPointer())
     ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
 
-    -- Update FOV relative to width
     Cam.fov = (CANVAS_W / 800) * 600
 end
 
@@ -82,7 +77,6 @@ local function RasterizeTriangle(p1, p2, p3, shadedColor)
     if h < 1 then return end
     local inv_h = 1 / h
 
-    -- Pre-calculate Y bounds
     local y_start = max(0, ceil(p1.y))
     local y_end   = min(CANVAS_H - 1, floor(p3.y))
 
@@ -113,13 +107,11 @@ local function RasterizeTriangle(p1, p2, p3, shadedColor)
 
             local current_z = az + z_step * (start_x - ax)
 
-            -- POINTER ARITHMETIC: Get the base address of the current row
             local row_idx = y * CANVAS_W
             local z_row = ZBuffer + row_idx
             local s_row = ScreenPtr + row_idx
 
             for x = start_x, end_x do
-                -- Raw index access is extremely fast in FFI
                 if current_z < z_row[x] then
                     z_row[x] = current_z
                     s_row[x] = shadedColor
@@ -157,7 +149,6 @@ function love.load()
 
     Cam.pos = {x=32, y=35, z=-20}
 
-    -- TORUS GENERATION
     local segs, sides = 32, 16
     local tor = CreateTriObject(32, 35, 32, segs*sides, segs*sides*2)
     local R, r, vIdx, tIdx = 12, 5, 0, 0
@@ -196,26 +187,11 @@ function love.update(dt)
         return
     end
 
-    -- Movement logic
     local s = 40 * dt
-    if love.keyboard.isDown("w") then
-        Cam.pos.x = Cam.pos.x + Cam.fw.x * s
-        Cam.pos.y = Cam.pos.y + Cam.fw.y * s
-        Cam.pos.z = Cam.pos.z + Cam.fw.z * s
-    end
-    if love.keyboard.isDown("s") then
-        Cam.pos.x = Cam.pos.x - Cam.fw.x * s
-        Cam.pos.y = Cam.pos.y - Cam.fw.y * s
-        Cam.pos.z = Cam.pos.z - Cam.fw.z * s
-    end
-    if love.keyboard.isDown("a") then
-        Cam.pos.x = Cam.pos.x - Cam.rt.x * s
-        Cam.pos.z = Cam.pos.z - Cam.rt.z * s
-    end
-    if love.keyboard.isDown("d") then
-        Cam.pos.x = Cam.pos.x + Cam.rt.x * s
-        Cam.pos.z = Cam.pos.z + Cam.rt.z * s
-    end
+    if love.keyboard.isDown("w") then Cam.pos.x = Cam.pos.x + Cam.fw.x * s; Cam.pos.y = Cam.pos.y + Cam.fw.y * s; Cam.pos.z = Cam.pos.z + Cam.fw.z * s end
+    if love.keyboard.isDown("s") then Cam.pos.x = Cam.pos.x - Cam.fw.x * s; Cam.pos.y = Cam.pos.y - Cam.fw.y * s; Cam.pos.z = Cam.pos.z - Cam.fw.z * s end
+    if love.keyboard.isDown("a") then Cam.pos.x = Cam.pos.x - Cam.rt.x * s; Cam.pos.z = Cam.pos.z - Cam.rt.z * s end
+    if love.keyboard.isDown("d") then Cam.pos.x = Cam.pos.x + Cam.rt.x * s; Cam.pos.z = Cam.pos.z + Cam.rt.z * s end
     if love.keyboard.isDown("e") then Cam.pos.y = Cam.pos.y - s end
     if love.keyboard.isDown("q") then Cam.pos.y = Cam.pos.y + s end
 
@@ -242,23 +218,22 @@ function love.draw()
         return
     end
 
-    -- Fast Clear
+    -- EXTREME FAST CLEAR: Use FFI to clear both buffers instantly
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
-    for i=0, (CANVAS_W * CANVAS_H)-1 do ZBuffer[i] = Z_FAR end
+
+    -- 0x7F byte pattern translates to roughly 3.4e38 in float representation
+    ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
 
     for _, obj in ipairs(TriObjects) do
-        -- 1. TRANSFORM & PROJECT
         for i=0, obj.vCount-1 do
             local v, tr = obj.verts[i], obj.transform
             local wx = tr.pos.x + v.x*tr.rt.x + v.y*tr.up.x + v.z*tr.fw.x
             local wy = tr.pos.y + v.x*tr.rt.y + v.y*tr.up.y + v.z*tr.fw.y
             local wz = tr.pos.z + v.x*tr.rt.z + v.y*tr.up.z + v.z*tr.fw.z
-
             ProjectToScreen(wx, wy, wz, obj.pCache[i])
             obj.vCache[i].x, obj.vCache[i].y, obj.vCache[i].z = wx, wy, wz
         end
 
-        -- 2. DRAW TRIANGLES
         for i=0, obj.tCount-1 do
             local t = obj.tris[i]
             local v1, v2, v3 = obj.vCache[t.v1], obj.vCache[t.v2], obj.vCache[t.v3]
@@ -268,7 +243,6 @@ function love.draw()
                 local nx = (v2.y-v1.y)*(v3.z-v1.z)-(v2.z-v1.z)*(v3.y-v1.y)
                 local ny = (v2.z-v1.z)*(v3.x-v1.x)-(v2.x-v1.x)*(v3.z-v1.z)
                 local nz = (v2.x-v1.x)*(v3.y-v1.y)-(v2.y-v1.y)*(v3.x-v1.x)
-
                 local dotCam = nx*(v1.x-Cam.pos.x) + ny*(v1.y-Cam.pos.y) + nz*(v1.z-Cam.pos.z)
 
                 if dotCam < 0 then
@@ -288,7 +262,13 @@ function love.draw()
     end
 
     ScreenImage:replacePixels(ScreenBuffer)
+
+    -- THE GHOSTBUSTER FIX: Tell LÖVE to overwrite the screen directly instead of blending
+    love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
+
+    -- Reset to standard blend mode for drawing text so it doesn't look weird
+    love.graphics.setBlendMode("alpha")
     love.graphics.print("ULTIMA PLATIN | PTR ARITHMETIC | FPS: "..love.timer.getFPS(), 10, 10)
 end
 
@@ -300,5 +280,7 @@ end
 function love.keypressed(key)
     if key == "f" then
         love.window.setFullscreen(not love.window.getFullscreen())
+    elseif key == "escape" then
+        love.event.quit()
     end
 end
