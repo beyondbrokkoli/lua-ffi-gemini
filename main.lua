@@ -1,12 +1,9 @@
--- main.lua
 local ffi = require("ffi")
 local bit = require("bit")
 
 -- ==========================================
 -- 1. FFI DEFINITIONS & LOCALIZATIONS
 -- ==========================================
--- Notice how Vec3 and ProjectOut arrays are gone.
--- We only keep structs for things accessed as a single, holistic unit.
 ffi.cdef[[
     typedef struct { float x, y, z; } Vec3;
     typedef struct { Vec3 pos; Vec3 fw, rt, up; float yaw, pitch, fov; } Entity;
@@ -17,72 +14,75 @@ local floor, ceil, max, min = math.floor, math.ceil, math.max, math.min
 local sqrt, cos, sin = math.sqrt, math.cos, math.sin
 
 -- ==========================================
--- 2. GLOBAL STATE & BUFFERS
+-- 2. GLOBAL STATE, BUFFERS & SOA
 -- ==========================================
 local CANVAS_W, CANVAS_H, HALF_W, HALF_H
 local ScreenBuffer, ScreenPtr, ZBuffer, ScreenImage
 local Cam = ffi.new("Entity")
 local TriObjects = {}
-
 local isMouseCaptured = false
 local resizeTimer = 0
 local pendingResize = false
 
+-- SoA for Global Transforms
+local MAX_OBJS = 2048
+local Obj_X, Obj_Y, Obj_Z = ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS)
+local Obj_Yaw, Obj_Pitch = ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS)
+local Obj_Radius = ffi.new("float[?]", MAX_OBJS)
+local Obj_FWX, Obj_FWY, Obj_FWZ = ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS)
+local Obj_RTX, Obj_RTZ = ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS)
+local Obj_UPX, Obj_UPY, Obj_UPZ = ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS)
+local NumObjects = 0
+
 local function ReinitBuffers(w, h)
     CANVAS_W, CANVAS_H = w, h
     HALF_W, HALF_H = w * 0.5, h * 0.5
-
     ScreenBuffer = love.image.newImageData(CANVAS_W, CANVAS_H)
     ScreenImage = love.graphics.newImage(ScreenBuffer)
-
     ScreenPtr = ffi.cast("uint32_t*", ScreenBuffer:getPointer())
     ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
-
     Cam.fov = (CANVAS_W / 800) * 600
 end
 
 -- ==========================================
 -- 3. SOA KERNEL & SHAPES
 -- ==========================================
-function CreateTriObject(x, y, z, vCount, tCount)
-    local obj = {
-        transform = ffi.new("Entity"),
-        -- SoA: Local Vertices
-        vx = ffi.new("float[?]", vCount),
-        vy = ffi.new("float[?]", vCount),
-        vz = ffi.new("float[?]", vCount),
-        -- SoA: World Space Cache
-        cx = ffi.new("float[?]", vCount),
-        cy = ffi.new("float[?]", vCount),
-        cz = ffi.new("float[?]", vCount),
-        -- SoA: Screen Space Cache
-        px = ffi.new("float[?]", vCount),
-        py = ffi.new("float[?]", vCount),
-        pz = ffi.new("float[?]", vCount),
-        pValid = ffi.new("bool[?]", vCount),
+local function CreateTriObject(x, y, z, vCount, tCount, radius)
+    local id = NumObjects
+    Obj_X[id], Obj_Y[id], Obj_Z[id] = x, y, z
+    Obj_Yaw[id], Obj_Pitch[id] = 0, 0
+    Obj_Radius[id] = radius or 50
 
+    local obj = {
+        id = id,
+        vx = ffi.new("float[?]", vCount), vy = ffi.new("float[?]", vCount), vz = ffi.new("float[?]", vCount),
+        cx = ffi.new("float[?]", vCount), cy = ffi.new("float[?]", vCount), cz = ffi.new("float[?]", vCount),
+        px = ffi.new("float[?]", vCount), py = ffi.new("float[?]", vCount), pz = ffi.new("float[?]", vCount),
+        pValid = ffi.new("bool[?]", vCount),
         tris = ffi.new("Triangle[?]", tCount),
         vCount = vCount, tCount = tCount
     }
-    obj.transform.pos = {x=x, y=y, z=z}
     table.insert(TriObjects, obj)
+    NumObjects = NumObjects + 1
     return obj
 end
 
-function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides)
-    local tor = CreateTriObject(cx, cy, cz, segments * sides, segments * sides * 2)
+local function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides)
+    local bound = mainRadius + tubeRadius
+    local tor = CreateTriObject(cx, cy, cz, segments * sides, segments * sides * 2, bound)
     local vIdx, tIdx = 0, 0
+
     for i=0, segments-1 do
         local th = (i/segments) * math.pi * 2
         for j=0, sides-1 do
             local ph = (j/sides) * math.pi * 2
-            -- Writing linearly into SoA arrays
             tor.vx[vIdx] = (mainRadius + tubeRadius * cos(ph)) * cos(th)
             tor.vy[vIdx] = tubeRadius * sin(ph)
             tor.vz[vIdx] = (mainRadius + tubeRadius * cos(ph)) * sin(th)
             vIdx = vIdx + 1
         end
     end
+
     for i=0, segments-1 do
         local i_next = (i+1) % segments
         for j=0, sides-1 do
@@ -95,39 +95,55 @@ function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides)
     return tor
 end
 
-local function UpdateBasis(ent)
+local function UpdateCameraBasis(ent)
     local cy, sy = cos(ent.yaw), sin(ent.yaw)
     local cp, sp = cos(ent.pitch), sin(ent.pitch)
     ent.fw.x, ent.fw.y, ent.fw.z = sy * cp, sp, cy * cp
     ent.rt.x, ent.rt.z = cy, -sy
-    ent.up.x = ent.fw.y * ent.rt.z - ent.fw.z * ent.rt.y
+    ent.up.x = ent.fw.y * ent.rt.z
     ent.up.y = ent.fw.z * ent.rt.x - ent.fw.x * ent.rt.z
-    ent.up.z = ent.fw.x * ent.rt.y - ent.fw.y * ent.rt.x
+    ent.up.z = -ent.fw.y * ent.rt.x
+end
+
+local function BatchUpdateTransforms(dt)
+    for i = 0, NumObjects - 1 do
+        Obj_Yaw[i] = Obj_Yaw[i] + dt
+        Obj_Pitch[i] = Obj_Pitch[i] + dt * 0.5
+
+        local cy, sy = cos(Obj_Yaw[i]), sin(Obj_Yaw[i])
+        local cp, sp = cos(Obj_Pitch[i]), sin(Obj_Pitch[i])
+
+        local fwx, fwy, fwz = sy * cp, sp, cy * cp
+        local rtx, rtz = cy, -sy
+
+        Obj_FWX[i], Obj_FWY[i], Obj_FWZ[i] = fwx, fwy, fwz
+        Obj_RTX[i], Obj_RTZ[i] = rtx, rtz
+
+        Obj_UPX[i] = fwy * rtz
+        Obj_UPY[i] = fwz * rtx - fwx * rtz
+        Obj_UPZ[i] = -fwy * rtx
+    end
 end
 
 -- ==========================================
--- 4. SCANLINE RASTERIZER (Raw Float Edition)
+-- 4. SCANLINE RASTERIZER
 -- ==========================================
 local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
-    -- 1. Sort vertices by Y
     if y1 > y2 then x1,x2 = x2,x1; y1,y2 = y2,y1; z1,z2 = z2,z1 end
     if y1 > y3 then x1,x3 = x3,x1; y1,y3 = y3,y1; z1,z3 = z3,z1 end
     if y2 > y3 then x2,x3 = x3,x2; y2,y3 = y3,y2; z2,z3 = z3,z2 end
 
     local total_height = y3 - y1
-    if total_height <= 0 then return end -- Degenerate triangle
+    if total_height <= 0 then return end
 
     local inv_total = 1.0 / total_height
     local y_start = max(0, ceil(y1))
     local y_end   = min(CANVAS_H - 1, floor(y3))
 
-    -- ==========================================
-    -- TOP HALF (y1 to y2)
-    -- ==========================================
     local dy_upper = y2 - y1
     if dy_upper > 0 then
         local inv_upper = 1.0 / dy_upper
-        local limit_y = min(y_end, floor(y2)) -- Guard the transition point
+        local limit_y = min(y_end, floor(y2))
 
         for y = y_start, limit_y do
             local t_total = (y - y1) * inv_total
@@ -159,9 +175,6 @@ local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
         end
     end
 
-    -- ==========================================
-    -- BOTTOM HALF (y2 to y3)
-    -- ==========================================
     local dy_lower = y3 - y2
     if dy_lower > 0 then
         local inv_lower = 1.0 / dy_lower
@@ -197,6 +210,7 @@ local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
         end
     end
 end
+
 -- ==========================================
 -- 5. LÖVE CALLBACKS
 -- ==========================================
@@ -204,8 +218,17 @@ function love.load()
     local startW, startH = love.graphics.getDimensions()
     ReinitBuffers(startW, startH)
     love.window.setMode(CANVAS_W, CANVAS_H, {resizable=true, vsync=0})
-    Cam.pos = {x=150, y=50, z=-100}
-    CreateTorus(150, 50, 100, 40, 15, 128, 64)
+
+    Cam.pos = {x=0, y=0, z=0}
+
+    -- Spawn 500 random Toruses for benchmark
+    math.randomseed(os.time())
+    for i = 1, 50 do
+        local x = math.random(-800, 800)
+        local y = math.random(-300, 300)
+        local z = math.random(100, 1500)
+        CreateTorus(x, y, z, 20, 8, 32, 16)
+    end
 end
 
 function love.update(dt)
@@ -218,7 +241,7 @@ function love.update(dt)
         return
     end
 
-    local s = 40 * dt
+    local s = 200 * dt
     if love.keyboard.isDown("w") then Cam.pos.x = Cam.pos.x + Cam.fw.x * s; Cam.pos.y = Cam.pos.y + Cam.fw.y * s; Cam.pos.z = Cam.pos.z + Cam.fw.z * s end
     if love.keyboard.isDown("s") then Cam.pos.x = Cam.pos.x - Cam.fw.x * s; Cam.pos.y = Cam.pos.y - Cam.fw.y * s; Cam.pos.z = Cam.pos.z - Cam.fw.z * s end
     if love.keyboard.isDown("a") then Cam.pos.x = Cam.pos.x - Cam.rt.x * s; Cam.pos.z = Cam.pos.z - Cam.rt.z * s end
@@ -233,13 +256,9 @@ function love.update(dt)
     if love.keyboard.isDown("down")  then Cam.pitch = Cam.pitch + rotSpeed end
 
     Cam.pitch = max(-1.56, min(1.56, Cam.pitch))
-    UpdateBasis(Cam)
+    UpdateCameraBasis(Cam)
 
-    for _, obj in ipairs(TriObjects) do
-        obj.transform.yaw = obj.transform.yaw + dt
-        obj.transform.pitch = obj.transform.pitch + dt * 0.5
-        UpdateBasis(obj.transform)
-    end
+    BatchUpdateTransforms(dt)
 end
 
 function love.draw()
@@ -252,93 +271,93 @@ function love.draw()
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
     ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
 
-    -- Cache camera locals to avoid constant struct lookups
     local cpx, cpy, cpz = Cam.pos.x, Cam.pos.y, Cam.pos.z
     local cfw_x, cfw_y, cfw_z = Cam.fw.x, Cam.fw.y, Cam.fw.z
     local crt_x, crt_y, crt_z = Cam.rt.x, Cam.rt.y, Cam.rt.z
     local cup_x, cup_y, cup_z = Cam.up.x, Cam.up.y, Cam.up.z
     local cfov = Cam.fov
 
+    local objectsCulled = 0
+    local objectsDrawn = 0
+
     for _, obj in ipairs(TriObjects) do
-        local tr = obj.transform
-        local px, py, pz = tr.pos.x, tr.pos.y, tr.pos.z
-        local rx, ry, rz = tr.rt.x, tr.rt.y, tr.rt.z
-        local ux, uy, uz = tr.up.x, tr.up.y, tr.up.z
-        local fx, fy, fz = tr.fw.x, tr.fw.y, tr.fw.z
+        local id = obj.id
 
-        -- DOD Phase 1: Batched Linear Transforms & Projection
-        for i = 0, obj.vCount - 1 do
-            -- Fast sequential read
-            local lx, ly, lz = obj.vx[i], obj.vy[i], obj.vz[i]
+        -- Frustum Culling (Z-Plane Check)
+        local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
+        local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
 
-            local wx = px + lx*rx + ly*ux + lz*fx
-            local wy = py + lx*ry + ly*uy + lz*fy
-            local wz = pz + lx*rz + ly*uz + lz*fz
+        if cz_center + Obj_Radius[id] > 0.5 then
+            objectsDrawn = objectsDrawn + 1
 
-            obj.cx[i], obj.cy[i], obj.cz[i] = wx, wy, wz
+            local rx, ry, rz = Obj_RTX[id], 0, Obj_RTZ[id]
+            local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
+            local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+            local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
 
-            local dx, dy, dz = wx - cpx, wy - cpy, wz - cpz
-            local cz = dx*cfw_x + dy*cfw_y + dz*cfw_z
+            for i = 0, obj.vCount - 1 do
+                local lx, ly, lz = obj.vx[i], obj.vy[i], obj.vz[i]
 
-            if cz < 0.1 then
-                obj.pValid[i] = false
-            else
-                local f = cfov / cz
-                obj.px[i] = HALF_W + (dx*crt_x + dy*crt_y + dz*crt_z) * f
-                obj.py[i] = HALF_H + (dx*cup_x + dy*cup_y + dz*cup_z) * f
-                obj.pz[i] = cz
-                obj.pValid[i] = true
-            end
-        end
+                local wx = ox + lx*rx + ly*ux + lz*fx
+                local wy = oy + lx*ry + ly*uy + lz*fy
+                local wz = oz + lx*rz + ly*uz + lz*fz
 
-        -- DOD Phase 2: Geometry Rasterization
-        for i = 0, obj.tCount - 1 do
-            local t = obj.tris[i]
-            local i1, i2, i3 = t.v1, t.v2, t.v3
+                obj.cx[i], obj.cy[i], obj.cz[i] = wx, wy, wz
 
-            if obj.pValid[i1] and obj.pValid[i2] and obj.pValid[i3] then
-                -- Localize screen coordinates first
-                local px1, py1 = obj.px[i1], obj.py[i1]
-                local px2, py2 = obj.px[i2], obj.py[i2]
-                local px3, py3 = obj.px[i3], obj.py[i3]
+                local vdx, vdy, vdz = wx - cpx, wy - cpy, wz - cpz
+                local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
 
-                -- 1. SCREEN-SPACE BACK-FACE CULLING (The 2D Winding Check)
-                -- Calculates the signed 2D area. If > 0, the triangle is facing away.
-                local winding = (px2 - px1) * (py3 - py1) - (py2 - py1) * (px3 - px1)
-
-                -- NOTE: If your donut suddenly turns inside out, flip this to < 0
-                if winding < 0 then
-
-                    -- 2. ONLY calculate 3D math if the triangle is visible
-                    local wx1, wy1, wz1 = obj.cx[i1], obj.cy[i1], obj.cz[i1]
-                    local wx2, wy2, wz2 = obj.cx[i2], obj.cy[i2], obj.cz[i2]
-                    local wx3, wy3, wz3 = obj.cx[i3], obj.cy[i3], obj.cz[i3]
-
-                    -- Cross product for 3D Normal (used ONLY for lighting now)
-                    local nx = (wy2-wy1)*(wz3-wz1) - (wz2-wz1)*(wy3-wy1)
-                    local ny = (wz2-wz1)*(wx3-wx1) - (wx2-wx1)*(wz3-wz1)
-                    local nz = (wx2-wx1)*(wy3-wy1) - (wy2-wy1)*(wx3-wx1)
-
-                    -- Normalize and Light
-                    local len = sqrt(nx*nx + ny*ny + nz*nz)
-                    -- Simplified Lighting: lightDir = {0.5, 1.0, 0.5}
-                    local lightDot = max(0.2, min(1.0, (nx*0.5 + ny*1.0 + nz*0.5) / len))
-
-                    -- Fast Bitwise Color Packing
-                    local tc = t.color
-                    local r = bit.band(bit.rshift(tc, 16), 0xFF) * lightDot
-                    local g = bit.band(bit.rshift(tc, 8), 0xFF) * lightDot
-                    local b = bit.band(tc, 0xFF) * lightDot
-                    local shadedColor = 0xFF000000 + bit.lshift(r, 16) + bit.lshift(g, 8) + b
-
-                    RasterizeTriangle(
-                        px1, py1, obj.pz[i1],
-                        px2, py2, obj.pz[i2],
-                        px3, py3, obj.pz[i3],
-                        shadedColor
-                    )
+                if cz < 0.1 then
+                    obj.pValid[i] = false
+                else
+                    local f = cfov / cz
+                    obj.px[i] = HALF_W + (vdx*crt_x + vdy*crt_y + vdz*crt_z) * f
+                    obj.py[i] = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
+                    obj.pz[i] = cz
+                    obj.pValid[i] = true
                 end
             end
+
+            for i = 0, obj.tCount - 1 do
+                local t = obj.tris[i]
+                local i1, i2, i3 = t.v1, t.v2, t.v3
+
+                if obj.pValid[i1] and obj.pValid[i2] and obj.pValid[i3] then
+                    local px1, py1 = obj.px[i1], obj.py[i1]
+                    local px2, py2 = obj.px[i2], obj.py[i2]
+                    local px3, py3 = obj.px[i3], obj.py[i3]
+
+                    local winding = (px2 - px1) * (py3 - py1) - (py2 - py1) * (px3 - px1)
+
+                    if winding < 0 then
+                        local wx1, wy1, wz1 = obj.cx[i1], obj.cy[i1], obj.cz[i1]
+                        local wx2, wy2, wz2 = obj.cx[i2], obj.cy[i2], obj.cz[i2]
+                        local wx3, wy3, wz3 = obj.cx[i3], obj.cy[i3], obj.cz[i3]
+
+                        local nx = (wy2-wy1)*(wz3-wz1) - (wz2-wz1)*(wy3-wy1)
+                        local ny = (wz2-wz1)*(wx3-wx1) - (wx2-wx1)*(wz3-wz1)
+                        local nz = (wx2-wx1)*(wy3-wy1) - (wy2-wy1)*(wx3-wx1)
+
+                        local len = sqrt(nx*nx + ny*ny + nz*nz)
+                        local lightDot = max(0.2, min(1.0, (nx*0.5 + ny*1.0 + nz*0.5) / len))
+
+                        local tc = t.color
+                        local r = bit.band(bit.rshift(tc, 16), 0xFF) * lightDot
+                        local g = bit.band(bit.rshift(tc, 8), 0xFF) * lightDot
+                        local b = bit.band(tc, 0xFF) * lightDot
+                        local shadedColor = 0xFF000000 + bit.lshift(r, 16) + bit.lshift(g, 8) + b
+
+                        RasterizeTriangle(
+                            px1, py1, obj.pz[i1],
+                            px2, py2, obj.pz[i2],
+                            px3, py3, obj.pz[i3],
+                            shadedColor
+                        )
+                    end
+                end
+            end
+        else
+            objectsCulled = objectsCulled + 1
         end
     end
 
@@ -346,9 +365,11 @@ function love.draw()
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
     love.graphics.setBlendMode("alpha")
-    love.graphics.print("ULTIMA PLATIN | DATA-ORIENTED SOA | FPS: "..love.timer.getFPS(), 10, 10)
+
+    love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
+    love.graphics.print(string.format("Drawn: %d | Culled: %d", objectsDrawn, objectsCulled), 10, 30)
     local status = isMouseCaptured and "MOUSE LOCKED (J to unlock)" or "MOUSE FREE (J to lock)"
-    love.graphics.print(status, 10, 30)
+    love.graphics.print(status, 10, 50)
 end
 
 function love.resize(w, h)
