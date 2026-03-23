@@ -5,11 +5,12 @@ local bit = require("bit")
 -- ==========================================
 -- 1. FFI DEFINITIONS & LOCALIZATIONS
 -- ==========================================
--- Added pre-unpacked colors for zero-overhead lighting
+-- Notice how Vec3 and ProjectOut arrays are gone.
+-- We only keep structs for things accessed as a single, holistic unit.
 ffi.cdef[[
     typedef struct { float x, y, z; } Vec3;
     typedef struct { Vec3 pos; Vec3 fw, rt, up; float yaw, pitch, fov; } Entity;
-    typedef struct { int v1, v2, v3; float r, g, b; } Triangle;
+    typedef struct { int v1, v2, v3; uint32_t color; } Triangle;
 ]]
 
 local floor, ceil, max, min = math.floor, math.ceil, math.max, math.min
@@ -82,27 +83,13 @@ function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides)
             vIdx = vIdx + 1
         end
     end
-    -- Inside CreateTorus, where triangles are assigned:
     for i=0, segments-1 do
         local i_next = (i+1) % segments
         for j=0, sides-1 do
             local j_next = (j+1) % sides
             local a, b, c, d = i*sides+j, i_next*sides+j, i_next*sides+j_next, i*sides+j_next
-
-            -- Define your raw colors once
-            local c1, c2 = 0xFFFFCC44, 0xFFCC8822
-
-            local function unpack(hex)
-                return bit.band(bit.rshift(hex, 16), 0xFF),
-                       bit.band(bit.rshift(hex, 8), 0xFF),
-                       bit.band(hex, 0xFF)
-            end
-
-            local r1, g1, b1 = unpack(c1)
-            local r2, g2, b2 = unpack(c2)
-
-            tor.tris[tIdx] = {v1=a, v2=c, v3=b, r=r1, g=g1, b=b1}; tIdx = tIdx + 1
-            tor.tris[tIdx] = {v1=a, v2=d, v3=c, r=r2, g=g2, b=b2}; tIdx = tIdx + 1
+            tor.tris[tIdx] = {v1=a, v2=c, v3=b, color=0xFFFFCC44}; tIdx = tIdx + 1
+            tor.tris[tIdx] = {v1=a, v2=d, v3=c, color=0xFFCC8822}; tIdx = tIdx + 1
         end
     end
     return tor
@@ -121,114 +108,60 @@ end
 -- ==========================================
 -- 4. SCANLINE RASTERIZER (Raw Float Edition)
 -- ==========================================
--- Optimized Rasterizer (The DDA Edition)
+-- Stripped of all table logic. It only takes raw primitives now.
 local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
-    -- 1. Sort vertices (y1 <= y2 <= y3)
+    -- Inline sorting (y1 <= y2 <= y3)
     if y1 > y2 then x1,x2 = x2,x1; y1,y2 = y2,y1; z1,z2 = z2,z1 end
     if y1 > y3 then x1,x3 = x3,x1; y1,y3 = y3,y1; z1,z3 = z3,z1 end
     if y2 > y3 then x2,x3 = x3,x2; y2,y3 = y3,y2; z2,z3 = z3,z2 end
 
-    local total_h = y3 - y1
-    if total_h < 1 then return end
+    local h = y3 - y1
+    if h < 1 then return end
+    local inv_h = 1 / h
 
-    -- 2. Calculate Slopes (Deltas per 1 pixel in Y)
-    -- Long edge (1 -> 3)
-    local inv_total = 1.0 / total_h
-    local dx13 = (x3 - x1) * inv_total
-    local dz13 = (z3 - z1) * inv_total
+    local y_start = max(0, ceil(y1))
+    local y_end   = min(CANVAS_H - 1, floor(y3))
 
-    -- Short edges (1 -> 2 and 2 -> 3)
-    local upper_h = y2 - y1
-    local lower_h = y3 - y2
+    for y = y_start, y_end do
+        local is_upper = y < y2
+        local segment_h = is_upper and (y2 - y1) or (y3 - y2)
+        if segment_h < 1 then segment_h = 1 end
 
-    -- 3. Rasterize Top Half
-    if upper_h > 0.00001 then -- Prevent snake gaps!
-        local inv_up = 1.0 / upper_h
-        local dx12 = (x2 - x1) * inv_up
-        local dz12 = (z2 - z1) * inv_up
+        local t1 = (y - y1) * inv_h
+        local t2 = (y - (is_upper and y1 or y2)) / segment_h
 
-        local y_start = max(0, ceil(y1))
-        local y_end   = min(CANVAS_H - 1, floor(y2))
-
-        for y = y_start, y_end do
-            local prestep = y - y1
-            local ax, az = x1 + dx13 * prestep, z1 + dz13 * prestep
-            local bx, bz = x1 + dx12 * prestep, z1 + dz12 * prestep
-
-            if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
-
-            -- Inner Span Loop
-            local row_idx = y * CANVAS_W
-            local z_row, s_row = ZBuffer + row_idx, ScreenPtr + row_idx
-            local rw = bx - ax
-            if rw > 0 then
-                local z_step = (bz - az) / rw
-                -- Consistent rounding to prevent "Snake" gaps
-                local start_x = ceil(ax)
-                local end_x   = ceil(bx) - 1 -- Triangle owns the pixel its start falls in, but not its end
-
-                -- Clamp to screen
-                if start_x < 0 then start_x = 0 end
-                if end_x > CANVAS_W - 1 then end_x = CANVAS_W - 1 end
-
-                if start_x <= end_x then
-                    local cur_z = az + z_step * (start_x - ax)
-                    for x = start_x, end_x do
-                        -- REVERSED Z-TEST: Larger 1/Z means closer to camera
-                        if cur_z > z_row[x] then
-                            z_row[x], s_row[x] = cur_z, shadedColor
-                        end
-                        cur_z = cur_z + z_step
-                    end
-                end
-            end
+        local ax, az = x1 + (x3-x1)*t1, z1 + (z3-z1)*t1
+        local bx, bz
+        if is_upper then
+            bx, bz = x1 + (x2-x1)*t2, z1 + (z2-z1)*t2
+        else
+            bx, bz = x2 + (x3-x2)*t2, z2 + (z3-z2)*t2
         end
-    end
 
-    -- 4. Rasterize Bottom Half
-    if lower_h > 0.00001 then -- Prevent snake gaps!
-        local inv_low = 1.0 / lower_h
-        local dx23 = (x3 - x2) * inv_low
-        local dz23 = (z3 - z2) * inv_low
+        if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
 
-        local y_start = max(0, ceil(y2))
-        local y_end   = min(CANVAS_H - 1, floor(y3))
-
-        for y = y_start, y_end do
-            local ax = x1 + dx13 * (y - y1)
-            local az = z1 + dz13 * (y - y1)
-            local bx = x2 + dx23 * (y - y2)
-            local bz = z2 + dz23 * (y - y2)
-
-            if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
+        local row_width = bx - ax
+        if row_width > 0 then
+            local z_step = (bz - az) / row_width
+            local start_x = max(0, ceil(ax))
+            local end_x   = min(CANVAS_W - 1, floor(bx))
+            local current_z = az + z_step * (start_x - ax)
 
             local row_idx = y * CANVAS_W
-            local z_row, s_row = ZBuffer + row_idx, ScreenPtr + row_idx
-            local rw = bx - ax
-            if rw > 0 then
-                local z_step = (bz - az) / rw
-                -- Consistent rounding to prevent "Snake" gaps
-                local start_x = ceil(ax)
-                local end_x   = ceil(bx) - 1 -- Triangle owns the pixel its start falls in, but not its end
+            local z_row = ZBuffer + row_idx
+            local s_row = ScreenPtr + row_idx
 
-                -- Clamp to screen
-                if start_x < 0 then start_x = 0 end
-                if end_x > CANVAS_W - 1 then end_x = CANVAS_W - 1 end
-
-                if start_x <= end_x then
-                    local cur_z = az + z_step * (start_x - ax)
-                    for x = start_x, end_x do
-                        -- REVERSED Z-TEST: Larger 1/Z means closer to camera
-                        if cur_z > z_row[x] then
-                            z_row[x], s_row[x] = cur_z, shadedColor
-                        end
-                        cur_z = cur_z + z_step
-                    end
+            for x = start_x, end_x do
+                if current_z < z_row[x] then
+                    z_row[x] = current_z
+                    s_row[x] = shadedColor
                 end
+                current_z = current_z + z_step
             end
         end
     end
 end
+
 -- ==========================================
 -- 5. LÖVE CALLBACKS
 -- ==========================================
@@ -282,9 +215,8 @@ function love.draw()
         return
     end
 
-    -- Lightning fast C-level fills!
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
-    ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0) -- IEEE 754 0.0 is bitwise 0
+    ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
 
     -- Cache camera locals to avoid constant struct lookups
     local cpx, cpy, cpz = Cam.pos.x, Cam.pos.y, Cam.pos.z
@@ -320,11 +252,11 @@ function love.draw()
                 local f = cfov / cz
                 obj.px[i] = HALF_W + (dx*crt_x + dy*crt_y + dz*crt_z) * f
                 obj.py[i] = HALF_H + (dx*cup_x + dy*cup_y + dz*cup_z) * f
-                obj.pz[i] = 1.0 / cz  -- Store 1/Z for perspective-correct interpolation
+                obj.pz[i] = cz
                 obj.pValid[i] = true
             end
         end
-        -- stable color packing
+
         -- DOD Phase 2: Geometry Rasterization
         for i = 0, obj.tCount - 1 do
             local t = obj.tris[i]
@@ -335,29 +267,19 @@ function love.draw()
                 local wx2, wy2, wz2 = obj.cx[i2], obj.cy[i2], obj.cz[i2]
                 local wx3, wy3, wz3 = obj.cx[i3], obj.cy[i3], obj.cz[i3]
 
-                -- 1. Normal calculation
                 local nx = (wy2-wy1)*(wz3-wz1) - (wz2-wz1)*(wy3-wy1)
                 local ny = (wz2-wz1)*(wx3-wx1) - (wx2-wx1)*(wz3-wz1)
                 local nz = (wx2-wx1)*(wy3-wy1) - (wy2-wy1)*(wx3-wx1)
+                local dotCam = nx*(wx1-cpx) + ny*(wy1-cpy) + nz*(wz1-cpz)
 
-                -- 2. Backface Culling (Dot product with view vector)
-                if nx*(wx1-cpx) + ny*(wy1-cpy) + nz*(wz1-cpz) < 0 then
-
-                    -- 3. Modern Normalization (math.sqrt is faster than the hack here!)
+                if dotCam < 0 then
                     local len = sqrt(nx*nx + ny*ny + nz*nz)
-                    local invLen = 1.0 / len
-                    nx, ny, nz = nx * invLen, ny * invLen, nz * invLen
+                    nx, ny, nz = nx/len, ny/len, nz/len
+                    local lightDot = max(0.2, min(1.0, nx*0.5 + ny*1.0 + nz*0.5))
 
-                    -- 4. Directional Lighting (Normalized Light Vector: 0.37, 0.9, 0.2)
-                    -- Clamp between 0.2 and 1.0 to prevent color bit-shift overflow!
-                    local dot = nx*0.37 + ny*0.9 + nz*0.2
-                    local light = max(0.2, min(1.0, dot))
-
-                    -- 5. JIT-Friendly Color Packing
-                    -- Using floor() ensures we don't pass floats to bit.lshift
-                    local r = floor(t.r * light)
-                    local g = floor(t.g * light)
-                    local b = floor(t.b * light)
+                    local r = bit.band(bit.rshift(t.color, 16), 0xFF) * lightDot
+                    local g = bit.band(bit.rshift(t.color, 8), 0xFF) * lightDot
+                    local b = bit.band(t.color, 0xFF) * lightDot
                     local shadedColor = 0xFF000000 + bit.lshift(r, 16) + bit.lshift(g, 8) + b
 
                     RasterizeTriangle(
