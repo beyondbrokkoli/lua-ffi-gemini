@@ -109,34 +109,69 @@ end
 -- 4. SCANLINE RASTERIZER (Raw Float Edition)
 -- ==========================================
 -- Stripped of all table logic. It only takes raw primitives now.
+-- Added branchless fix
 local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
     -- Inline sorting (y1 <= y2 <= y3)
     if y1 > y2 then x1,x2 = x2,x1; y1,y2 = y2,y1; z1,z2 = z2,z1 end
     if y1 > y3 then x1,x3 = x3,x1; y1,y3 = y3,y1; z1,z3 = z3,z1 end
     if y2 > y3 then x2,x3 = x3,x2; y2,y3 = y3,y2; z2,z3 = z3,z2 end
 
-    local h = y3 - y1
-    if h < 1 then return end
-    local inv_h = 1 / h
+    local total_height = y3 - y1
+    if total_height < 1 then return end
+
+    -- Pre-calculate inverse heights to replace slow division with fast multiplication
+    local inv_total = 1.0 / total_height
+    local inv_upper = 1.0 / max(1, y2 - y1)
+    local inv_lower = 1.0 / max(1, y3 - y2)
 
     local y_start = max(0, ceil(y1))
+    local y_mid   = ceil(y2)
     local y_end   = min(CANVAS_H - 1, floor(y3))
 
-    for y = y_start, y_end do
-        local is_upper = y < y2
-        local segment_h = is_upper and (y2 - y1) or (y3 - y2)
-        if segment_h < 1 then segment_h = 1 end
+    -- ==========================================
+    -- TOP HALF (y1 to y2)
+    -- ==========================================
+    local bound_y_mid = min(CANVAS_H - 1, y_mid - 1)
+    for y = y_start, bound_y_mid do
+        local t_total = (y - y1) * inv_total
+        local t_half  = (y - y1) * inv_upper
 
-        local t1 = (y - y1) * inv_h
-        local t2 = (y - (is_upper and y1 or y2)) / segment_h
+        local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
+        local bx, bz = x1 + (x2 - x1) * t_half,  z1 + (z2 - z1) * t_half
 
-        local ax, az = x1 + (x3-x1)*t1, z1 + (z3-z1)*t1
-        local bx, bz
-        if is_upper then
-            bx, bz = x1 + (x2-x1)*t2, z1 + (z2-z1)*t2
-        else
-            bx, bz = x2 + (x3-x2)*t2, z2 + (z3-z2)*t2
+        if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
+
+        local row_width = bx - ax
+        if row_width > 0 then
+            local z_step = (bz - az) / row_width
+            local start_x = max(0, ceil(ax))
+            local end_x   = min(CANVAS_W - 1, floor(bx))
+            local current_z = az + z_step * (start_x - ax)
+
+            local row_idx = y * CANVAS_W
+            local z_row = ZBuffer + row_idx
+            local s_row = ScreenPtr + row_idx
+
+            for x = start_x, end_x do
+                if current_z < z_row[x] then
+                    z_row[x] = current_z
+                    s_row[x] = shadedColor
+                end
+                current_z = current_z + z_step
+            end
         end
+    end
+
+    -- ==========================================
+    -- BOTTOM HALF (y2 to y3)
+    -- ==========================================
+    local start_y_lower = max(y_start, y_mid)
+    for y = start_y_lower, y_end do
+        local t_total = (y - y1) * inv_total
+        local t_half  = (y - y2) * inv_lower
+
+        local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
+        local bx, bz = x2 + (x3 - x2) * t_half,  z2 + (z3 - z2) * t_half
 
         if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
 
@@ -297,7 +332,7 @@ function love.draw()
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
     love.graphics.setBlendMode("alpha")
-    love.graphics.print("THEOBROMIN | DATA-ORIENTED SOA | FPS: "..love.timer.getFPS(), 10, 10)
+    love.graphics.print("ULTIMA PLATIN | DATA-ORIENTED SOA | FPS: "..love.timer.getFPS(), 10, 10)
     local status = isMouseCaptured and "MOUSE LOCKED (J to unlock)" or "MOUSE FREE (J to lock)"
     love.graphics.print(status, 10, 30)
 end
