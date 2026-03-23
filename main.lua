@@ -109,55 +109,55 @@ end
 -- 4. SCANLINE RASTERIZER (Raw Float Edition)
 -- ==========================================
 -- Stripped of all table logic. It only takes raw primitives now.
--- Added branchless fix
+-- Gemini added improvements related to eliminating black slivers
+-- on the saddle of the torus, also fixing and optimizing other things along the way
 local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
-    -- Inline sorting (y1 <= y2 <= y3)
+    -- 1. Sort vertices by Y
     if y1 > y2 then x1,x2 = x2,x1; y1,y2 = y2,y1; z1,z2 = z2,z1 end
     if y1 > y3 then x1,x3 = x3,x1; y1,y3 = y3,y1; z1,z3 = z3,z1 end
     if y2 > y3 then x2,x3 = x3,x2; y2,y3 = y3,y2; z2,z3 = z3,z2 end
 
     local total_height = y3 - y1
-    if total_height < 1 then return end
+    if total_height <= 0 then return end -- Degenerate triangle
 
-    -- Pre-calculate inverse heights to replace slow division with fast multiplication
     local inv_total = 1.0 / total_height
-    local inv_upper = 1.0 / max(1, y2 - y1)
-    local inv_lower = 1.0 / max(1, y3 - y2)
-
     local y_start = max(0, ceil(y1))
-    local y_mid   = ceil(y2)
     local y_end   = min(CANVAS_H - 1, floor(y3))
 
     -- ==========================================
     -- TOP HALF (y1 to y2)
     -- ==========================================
-    local bound_y_mid = min(CANVAS_H - 1, y_mid - 1)
-    for y = y_start, bound_y_mid do
-        local t_total = (y - y1) * inv_total
-        local t_half  = (y - y1) * inv_upper
+    local dy_upper = y2 - y1
+    if dy_upper > 0 then
+        local inv_upper = 1.0 / dy_upper
+        local limit_y = min(y_end, floor(y2)) -- Guard the transition point
+        
+        for y = y_start, limit_y do
+            local t_total = (y - y1) * inv_total
+            local t_half  = (y - y1) * inv_upper
 
-        local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
-        local bx, bz = x1 + (x2 - x1) * t_half,  z1 + (z2 - z1) * t_half
+            local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
+            local bx, bz = x1 + (x2 - x1) * t_half,  z1 + (z2 - z1) * t_half
 
-        if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
+            if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
 
-        local row_width = bx - ax
-        if row_width > 0 then
-            local z_step = (bz - az) / row_width
-            local start_x = max(0, ceil(ax))
-            local end_x   = min(CANVAS_W - 1, floor(bx))
-            local current_z = az + z_step * (start_x - ax)
+            local row_width = bx - ax
+            if row_width > 0 then
+                local z_step = (bz - az) / row_width
+                local start_x = max(0, ceil(ax))
+                local end_x   = min(CANVAS_W - 1, floor(bx))
+                local current_z = az + z_step * (start_x - ax)
 
-            local row_idx = y * CANVAS_W
-            local z_row = ZBuffer + row_idx
-            local s_row = ScreenPtr + row_idx
+                local row_ptr = ScreenPtr + (y * CANVAS_W)
+                local z_ptr   = ZBuffer   + (y * CANVAS_W)
 
-            for x = start_x, end_x do
-                if current_z < z_row[x] then
-                    z_row[x] = current_z
-                    s_row[x] = shadedColor
+                for x = start_x, end_x do
+                    if current_z < z_ptr[x] then
+                        z_ptr[x] = current_z
+                        row_ptr[x] = shadedColor
+                    end
+                    current_z = current_z + z_step
                 end
-                current_z = current_z + z_step
             end
         end
     end
@@ -165,47 +165,49 @@ local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
     -- ==========================================
     -- BOTTOM HALF (y2 to y3)
     -- ==========================================
-    local start_y_lower = max(y_start, y_mid)
-    for y = start_y_lower, y_end do
-        local t_total = (y - y1) * inv_total
-        local t_half  = (y - y2) * inv_lower
+    local dy_lower = y3 - y2
+    if dy_lower > 0 then
+        local inv_lower = 1.0 / dy_lower
+        local start_y = max(y_start, ceil(y2))
 
-        local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
-        local bx, bz = x2 + (x3 - x2) * t_half,  z2 + (z3 - z2) * t_half
+        for y = start_y, y_end do
+            local t_total = (y - y1) * inv_total
+            local t_half  = (y - y2) * inv_lower
 
-        if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
+            local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
+            local bx, bz = x2 + (x3 - x2) * t_half,  z2 + (z3 - z2) * t_half
 
-        local row_width = bx - ax
-        if row_width > 0 then
-            local z_step = (bz - az) / row_width
-            local start_x = max(0, ceil(ax))
-            local end_x   = min(CANVAS_W - 1, floor(bx))
-            local current_z = az + z_step * (start_x - ax)
+            if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
 
-            local row_idx = y * CANVAS_W
-            local z_row = ZBuffer + row_idx
-            local s_row = ScreenPtr + row_idx
+            local row_width = bx - ax
+            if row_width > 0 then
+                local z_step = (bz - az) / row_width
+                local start_x = max(0, ceil(ax))
+                local end_x   = min(CANVAS_W - 1, floor(bx))
+                local current_z = az + z_step * (start_x - ax)
 
-            for x = start_x, end_x do
-                if current_z < z_row[x] then
-                    z_row[x] = current_z
-                    s_row[x] = shadedColor
+                local row_ptr = ScreenPtr + (y * CANVAS_W)
+                local z_ptr   = ZBuffer   + (y * CANVAS_W)
+
+                for x = start_x, end_x do
+                    if current_z < z_ptr[x] then
+                        z_ptr[x] = current_z
+                        row_ptr[x] = shadedColor
+                    end
+                    current_z = current_z + z_step
                 end
-                current_z = current_z + z_step
             end
         end
     end
 end
-
 -- ==========================================
 -- 5. LÖVE CALLBACKS
 -- ==========================================
 function love.load()
     local startW, startH = love.graphics.getDimensions()
     ReinitBuffers(startW, startH)
-    love.window.setMode(CANVAS_W, CANVAS_H, {resizable=true})
-    Cam.pos = {x=0, y=50, z=-200}
-
+    love.window.setMode(CANVAS_W, CANVAS_H, {resizable=true, vsync=0})
+    Cam.pos = {x=150, y=50, z=-100}
     CreateTorus(150, 50, 100, 40, 15, 128, 64)
 end
 
