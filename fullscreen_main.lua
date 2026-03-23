@@ -20,7 +20,7 @@ local CANVAS_W, CANVAS_H, HALF_W, HALF_H
 local ScreenBuffer, ScreenPtr, ZBuffer, ScreenImage
 local Cam = ffi.new("Entity")
 local TriObjects = {}
-local isMouseCaptured = false
+local isMouseCaptured = true
 local resizeTimer = 0
 local pendingResize = false
 
@@ -215,10 +215,11 @@ end
 -- 5. LÖVE CALLBACKS
 -- ==========================================
 function love.load()
+    love.window.setFullscreen(true)
     local startW, startH = love.graphics.getDimensions()
     ReinitBuffers(startW, startH)
-    love.window.setMode(CANVAS_W, CANVAS_H, {resizable=true, vsync=0})
-
+    love.window.setMode(CANVAS_W, CANVAS_H, {resizable=false, vsync=0, fullscreen=true})
+    love.mouse.setRelativeMode(isMouseCaptured)
     Cam.pos = {x=0, y=0, z=0}
 
     -- Spawn 500 random Toruses for benchmark
@@ -378,12 +379,12 @@ function love.resize(w, h)
 end
 
 function love.keypressed(key)
-    if key == "f" then
-        love.window.setFullscreen(not love.window.getFullscreen())
-    elseif key == "j" then
-        isMouseCaptured = not isMouseCaptured
-        love.mouse.setRelativeMode(isMouseCaptured)
-    elseif key == "escape" then
+    --  if key == "f" then
+    --    love.window.setFullscreen(not love.window.getFullscreen())
+    --  if key == "j" then
+    --    isMouseCaptured = not isMouseCaptured
+    --    love.mouse.setRelativeMode(isMouseCaptured)
+    if key == "escape" then
         love.event.quit()
     end
 end
