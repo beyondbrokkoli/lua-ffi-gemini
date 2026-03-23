@@ -131,7 +131,7 @@ local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
     if dy_upper > 0 then
         local inv_upper = 1.0 / dy_upper
         local limit_y = min(y_end, floor(y2)) -- Guard the transition point
-        
+
         for y = y_start, limit_y do
             local t_total = (y - y1) * inv_total
             local t_half  = (y - y1) * inv_upper
