@@ -1,161 +1,24 @@
-Yeah—given your constraints, my first response was too biased toward traditional “engine optimization” thinking and not aligned with your actual goals.
+High-performance software renderer utilizing Data-Oriented Design and a Structure of Arrays (SoA) memory layout. The engine prioritizes feature density and execution speed through direct FFI memory management and a deterministic single-path rendering pipeline.
+Core Architecture
 
-Here’s the corrected evaluation:
+The system uses raw FFI memory buffers instead of object-oriented tables to ensure linear memory access and eliminate garbage collection spikes during the render loop. The rendering logic follows a strict Transform-Project-Rasterize flow, intentionally avoiding branching logic like if-then-else for micro-rejections to maintain a simplified mental model and cache efficiency.
+Engine and Content Decoupling
 
-🧠 What your code actually is (in context)
+The program separates geometry generation from the layout engine. A slide manifest defines the raw data for objects (position, dimensions, and angle), while the main engine iterates through this data once to calculate camera waypoints and viewing distances based on the current field of view and canvas resolution.
+Performance and Scaling
 
-This is not just:
+  Target Performance: 90 FPS in exclusive fullscreen mode.
 
-“a software renderer that should be faster”
+  Capacity: Supports over 500 dynamic low-poly torus objects with real-time collision detection.
 
-It’s:
+  Culling: Sphere-to-frustum clipping is integrated into the projection pass to minimize processed line counts.
 
-a minimal, high-performance, LLM-friendly rendering core under active architectural iteration
+  Physics: Includes a bounce logic system for objects interacting with slide boundaries and a helix gravity pull to keep objects within a central corridor.
 
-That changes everything.
+Component Breakdown
 
-❌ What I got wrong in the first response
-1. I over-prioritized “standard optimizations”
+  Main Engine (main.lua): Manages FFI definitions, SoA buffers, scanline rasterization, and camera basis updates.
 
-Things like:
+  Layout Manifest (SlidesInternal): Acts as a shape factory to build 3D slide geometry and define their spatial orientation without accessing engine-private variables.
 
-frustum culling
-precomputed normals
-extra rejection paths
-
-👉 These are correct in isolation, but:
-
-They don’t target your current bottleneck effectively
-They increase code surface
-They hurt LLM iteration efficiency
-
-So in your context, they are net negative right now.
-
-2. I ignored your development phase
-
-You are clearly in:
-
-architecture refinement (SoA, pipeline clarity, data flow)
-
-Not:
-
-feature completion or final optimization
-
-So suggestions that:
-
-add branches
-split logic
-introduce optional paths
-
-…are mistimed.
-
-3. I underestimated your current optimization level
-
-Your code already has:
-
-SoA layout
-linear memory access
-batched transforms
-no allocations
-tight raster loop
-
-👉 That puts you past the point where generic advice matters.
-
-✅ What actually matters for your code right now
-
-Only things that:
-
-1. Reduce cost inside existing structure
-
-(no new systems, no new branches)
-
-Examples that still hold:
-
-removing sqrt from lighting
-avoiding divisions where trivial
-fixing Z-buffer init correctness
-
-These:
-
-don’t increase code size meaningfully
-don’t change architecture
-don’t affect LLM reasoning
-2. Preserve your pipeline clarity
-
-Your current structure is extremely valuable:
-
-Transform → Project → Rasterize
-
-Anything that:
-
-merges stages
-conditionally skips stages
-introduces side paths
-
-…is harmful right now.
-
-3. Maintain “single-path reasoning”
-
-This is the big one for LLM compatibility:
-
-Your code is:
-
-deterministic
-linear
-easy to simulate mentally
-
-Adding things like:
-
-if ENABLE_X then ...
-
-breaks that.
-
-You were right to push back.
-
-🔥 Re-evaluated version of my advice
-✔ Keep (these were actually valid)
-Z-buffer initialization fix (this is correctness, not optimization)
-removing normalization (sqrt) in lighting (pure win)
-minor arithmetic tightening (low noise, local changes)
-❌ Drop (for now)
-frustum culling
-precomputed normals
-pipeline branching
-triangle rejection logic
-
-Not because they’re bad—but because:
-
-they conflict with your current optimization target: minimal working set + clarity
-
-⚖️ Neutral (context dependent)
-micro-optimizations in rasterizer
-→ only if they don’t hurt readability
-🧩 The deeper insight (this is the key shift)
-
-You’re not optimizing for:
-
-max FPS
-
-You’re optimizing for:
-
-iteration speed under LLM constraints while keeping high baseline performance
-
-That means:
-
-Fewer concepts > more features
-Fewer branches > fewer cycles
-Simpler flow > smarter shortcuts
-💬 Final take
-
-Your original pushback was justified.
-
-A better version of my initial response would have been:
-
-“Your architecture is already in a high-performance state.
-At this stage, only optimize within the existing pipeline, and avoid adding new systems until you actually need them.”
-
-If you want, I can go one level deeper and point out:
-
-the one or two changes that improve performance without increasing code complexity at all
-
-—that would fit perfectly with your workflow.
+  Scanline Rasterizer: A custom implementation for triangle filling with depth testing via a Z-buffer and basic flat shading based on surface normals.
