@@ -1,3 +1,4 @@
+-- slides.lua
 local ffi = require("ffi")
 local max = math.max
 
@@ -10,10 +11,12 @@ return {
             local angle = sIdx * (math.pi / 2)
             local radius = 1500
             local x, y, z = math.cos(angle) * radius, math.sin(angle) * radius, sIdx * 3000
+            -- Inside CreateAutoSlide and CreateAutoSlideHorizontalSplit
+            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
 
             local slide = api.CreateTriObject(x, y, z, 8, 12, max(w, h))
             api.Obj_Yaw[slide.id] = angle
-            
+
             local hw, hh, ht = w/2, h/2, thickness/2
             local verts = { {-hw, -hh, -ht}, {hw, -hh, -ht}, {hw, hh, -ht}, {-hw, hh, -ht}, {-hw, -hh, ht}, {hw, -hh, ht}, {hw, hh, ht}, {-hw, hh, ht} }
             for i, v in ipairs(verts) do slide.vx[i-1], slide.vy[i-1], slide.vz[i-1] = v[1], v[2], v[3] end
@@ -39,6 +42,9 @@ return {
             local angle = sIdx * (math.pi / 2)
             local radius = 1500
             local cx, cy, cz = math.cos(angle) * radius, math.sin(angle) * radius, sIdx * 3000
+            -- Add this right here!
+            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = cx, cy, cz
+
             local rtX, rtZ = math.cos(angle), -math.sin(angle)
             local hw = w / 2
             local offset = (hw / 2) + (gap / 2)
