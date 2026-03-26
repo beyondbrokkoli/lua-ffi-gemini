@@ -1,7 +1,8 @@
+-- main.lua
 local ffi = require("ffi")
 local bit = require("bit")
 local function lerp(a, b, t) return a + (b - a) * t end
-local function lerpAngle(a, b, t) 
+local function lerpAngle(a, b, t)
     local diff = (b - a + math.pi) % (math.pi * 2) - math.pi
     return a + diff * t
 end
@@ -47,6 +48,12 @@ local TargetSlide, NumSlides = 0, 0
 local presentationMode = true
 local isSettled = false
 
+local Slide_X = ffi.new("float[?]", MAX_SLIDES)
+local Slide_Y = ffi.new("float[?]", MAX_SLIDES)
+local Slide_Z = ffi.new("float[?]", MAX_SLIDES)
+-- Active transition targets
+local tX, tY, tZ, tYaw, tPitch = 0, 0, 0, 0, 0
+
 local Way_X = ffi.new("float[?]", MAX_SLIDES)
 local Way_Y = ffi.new("float[?]", MAX_SLIDES)
 local Way_Z = ffi.new("float[?]", MAX_SLIDES)
@@ -91,6 +98,22 @@ local function CreateTriObject(x, y, z, vCount, tCount, radius)
     table.insert(TriObjects, obj)
     NumObjects = NumObjects + 1
     return obj
+end
+
+local function updateTargetSide()
+    local fx, fy, fz = Way_X[TargetSlide], Way_Y[TargetSlide], Way_Z[TargetSlide]
+    local sx, sy, sz = Slide_X[TargetSlide], Slide_Y[TargetSlide], Slide_Z[TargetSlide]
+    local bx, by, bz = sx - (fx - sx), sy, sz - (fz - sz)
+
+    local dF = (fx - Cam.pos.x)^2 + (fy - Cam.pos.y)^2 + (fz - Cam.pos.z)^2
+    local dB = (bx - Cam.pos.x)^2 + (by - Cam.pos.y)^2 + (bz - Cam.pos.z)^2
+
+    if dF <= dB then
+        tX, tY, tZ, tYaw = fx, fy, fz, Way_Yaw[TargetSlide]
+    else
+        tX, tY, tZ, tYaw = bx, by, bz, Way_Yaw[TargetSlide] + math.pi
+    end
+    tPitch = Way_Pitch[TargetSlide]
 end
 
 local function UpdateCameraBasis(ent)
@@ -233,10 +256,13 @@ function love.load()
         Obj_Yaw = Obj_Yaw,
         Way_X = Way_X, Way_Y = Way_Y, Way_Z = Way_Z,
         Way_Yaw = Way_Yaw, Way_Pitch = Way_Pitch,
-        Cam = Cam, CANVAS_W = CANVAS_W, CANVAS_H = CANVAS_H
+        Cam = Cam, CANVAS_W = CANVAS_W, CANVAS_H = CANVAS_H,
+
+        Slide_X = Slide_X, Slide_Y = Slide_Y, Slide_Z = Slide_Z
     }
-    
+
     NumSlides = require("slides").build(slideAPI, NumSlides)
+    updateTargetSide()
 end
 
 function love.update(dt)
@@ -249,22 +275,22 @@ function love.update(dt)
     if presentationMode and NumSlides > 0 then
         lerpT = min(1.0, lerpT + dt * 2)
         local easeT = 1 - (1 - lerpT) * (1 - lerpT)
-        
+
         if lerpT < 1.0 then
             arrivalTimer = 0
             isSettled = false
-            contentAlpha = max(0, 1 - (lerpT / 0.1)) 
+            contentAlpha = max(0, 1 - (lerpT / 0.1))
             notificationAlpha = (lerpT > 0.9) and ((lerpT - 0.9) / 0.1) or 0
 
-            Cam.pos.x = lerp(startX, Way_X[TargetSlide], easeT)
-            Cam.pos.y = lerp(startY, Way_Y[TargetSlide], easeT)
-            Cam.pos.z = lerp(startZ, Way_Z[TargetSlide], easeT)
-            Cam.yaw   = lerpAngle(startYaw, Way_Yaw[TargetSlide], easeT)
+            Cam.pos.x = lerp(startX, tX, easeT)
+            Cam.pos.y = lerp(startY, tY, easeT)
+            Cam.pos.z = lerp(startZ, tZ, easeT)
+            Cam.yaw   = lerpAngle(startYaw, tYaw, easeT)
             Cam.pitch = lerpAngle(startPitch, Way_Pitch[TargetSlide], easeT)
         else
-            Cam.pos.x, Cam.pos.y, Cam.pos.z = Way_X[TargetSlide], Way_Y[TargetSlide], Way_Z[TargetSlide]
-            Cam.yaw, Cam.pitch = Way_Yaw[TargetSlide], Way_Pitch[TargetSlide]
-            
+            Cam.pos.x, Cam.pos.y, Cam.pos.z = tX, tY, tZ
+            Cam.yaw, Cam.pitch = tYaw, tPitch
+
             isSettled = true
             arrivalTimer = arrivalTimer + dt
             notificationAlpha = (arrivalTimer < 1.0) and 1 or max(0, 1 - (arrivalTimer - 1.0) / 0.5)
@@ -431,6 +457,7 @@ function love.keypressed(key)
             startX, startY, startZ = Cam.pos.x, Cam.pos.y, Cam.pos.z
             startYaw, startPitch = Cam.yaw, Cam.pitch
             lerpT, arrivalTimer, contentAlpha, notificationAlpha = 0, 0, 0, 0
+            updateTargetSide()
             presentationMode = true
         end
     elseif key == "i" then
@@ -444,6 +471,7 @@ function love.keypressed(key)
         startYaw, startPitch = Cam.yaw, Cam.pitch
         lerpT, arrivalTimer, contentAlpha = 0, 0, 0
         TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
+         updateTargetSide()
     elseif key == "j" and not presentationMode then
         isMouseCaptured = not isMouseCaptured
         love.mouse.setRelativeMode(isMouseCaptured)
