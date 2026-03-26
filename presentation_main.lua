@@ -103,17 +103,21 @@ end
 local function updateTargetSide()
     local fx, fy, fz = Way_X[TargetSlide], Way_Y[TargetSlide], Way_Z[TargetSlide]
     local sx, sy, sz = Slide_X[TargetSlide], Slide_Y[TargetSlide], Slide_Z[TargetSlide]
-    local bx, by, bz = sx - (fx - sx), sy, sz - (fz - sz)
+
+    -- Full 3D reflection: b = s - (f - s) => 2s - f
+    local bx, by, bz = 2*sx - fx, 2*sy - fy, 2*sz - fz
 
     local dF = (fx - Cam.pos.x)^2 + (fy - Cam.pos.y)^2 + (fz - Cam.pos.z)^2
     local dB = (bx - Cam.pos.x)^2 + (by - Cam.pos.y)^2 + (bz - Cam.pos.z)^2
 
     if dF <= dB then
         tX, tY, tZ, tYaw = fx, fy, fz, Way_Yaw[TargetSlide]
+        tPitch = Way_Pitch[TargetSlide]
     else
         tX, tY, tZ, tYaw = bx, by, bz, Way_Yaw[TargetSlide] + math.pi
+        -- Usually pitch remains same for 'back' view unless you want to flip upside down
+        tPitch = Way_Pitch[TargetSlide]
     end
-    tPitch = Way_Pitch[TargetSlide]
 end
 
 local function UpdateCameraBasis(ent)
@@ -286,7 +290,7 @@ function love.update(dt)
             Cam.pos.y = lerp(startY, tY, easeT)
             Cam.pos.z = lerp(startZ, tZ, easeT)
             Cam.yaw   = lerpAngle(startYaw, tYaw, easeT)
-            Cam.pitch = lerpAngle(startPitch, Way_Pitch[TargetSlide], easeT)
+            Cam.pitch = lerpAngle(startPitch, tPitch, easeT)
         else
             Cam.pos.x, Cam.pos.y, Cam.pos.z = tX, tY, tZ
             Cam.yaw, Cam.pitch = tYaw, tPitch
