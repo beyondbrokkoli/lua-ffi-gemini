@@ -20,7 +20,7 @@ local CANVAS_W, CANVAS_H, HALF_W, HALF_H
 local ScreenBuffer, ScreenPtr, ZBuffer, ScreenImage
 local Cam = ffi.new("Entity")
 local TriObjects = {}
-local isMouseCaptured = false
+local isMouseCaptured = true
 local resizeTimer = 0
 local pendingResize = false
 
@@ -239,9 +239,40 @@ end
 -- 5. LÖVE CALLBACKS
 -- ==========================================
 function love.load()
-    local startW, startH = love.graphics.getDimensions()
-    ReinitBuffers(startW, startH)
-    love.window.setMode(CANVAS_W, CANVAS_H, {resizable=true, vsync=0})
+    local displayCount = love.window.getDisplayCount()
+    local primaryIndex = 1 -- Fallback
+
+    -- Find which index is actually the Primary (0,0) monitor
+    for i = 1, displayCount do
+        local x, y = love.window.getPosition(i)
+        if x == 0 and y == 0 then
+            primaryIndex = i
+            break
+        end
+    end
+
+    -- Get hardware-validated modes for the TRUE primary monitor
+    local modes = love.window.getFullscreenModes(primaryIndex)
+    local windowW, windowH = love.window.getDesktopDimensions(primaryIndex)
+
+    if #modes > 0 then
+        -- Use the highest hardware-supported resolution found
+        windowW = modes[1].width
+        windowH = modes[1].height
+    end
+
+    -- Force 'exclusive' fullscreen on the specific primary display index
+    love.window.setMode(windowW, windowH, {
+        fullscreen = true,
+        fullscreentype = "exclusive",
+        display = primaryIndex, -- Target the specific hardware index
+        vsync = 1,
+        centered = true
+    })
+
+    -- Your existing buffer initialization
+    ReinitBuffers(windowW, windowH)
+    love.mouse.setRelativeMode(isMouseCaptured)
 
     Cam.pos = {x=0, y=0, z=0}
 
