@@ -23,11 +23,9 @@ local SlidesInternal = {
         local NumSlides = startSlideCount
         local manifest = {}
 
-        -- Helper to create the actual box geometry
         local function BuildHalf(w, h, thickness, color, offX, offY)
             local slide = api.CreateTriObject(0, 0, 0, 8, 12, max(w, h))
             local hw, hh, ht = w/2, h/2, thickness/2
-            -- Apply offsets directly to vertices so the object "rotates" around the center of the split group
             local verts = {
                 {-hw+offX, -hh+offY, -ht}, {hw+offX, -hh+offY, -ht},
                 {hw+offX, hh+offY, -ht}, {-hw+offX, hh+offY, -ht},
@@ -40,37 +38,38 @@ local SlidesInternal = {
             return slide
         end
 
-        local function SpawnCrystalGuard(api, x, y, z, color, angle)
-            local offset = 800
-            local gx = x + math.cos(angle) * offset
-            local gz = z - math.sin(angle) * offset
-            local tor = api.CreateTorus(gx, y, gz, 60, 15, 8, 4, color)
-            local id = tor.id
-            api.Obj_VelX[id], api.Obj_VelY[id], api.Obj_VelZ[id] = (math.random()-0.5)*100, (math.random()-0.5)*100, (math.random()-0.5)*100
-            api.Obj_RotSpeedYaw[id], api.Obj_RotSpeedPitch[id] = 4.0, 2.0
+        -- Helper to unify manifest storage and math
+        local function RegisterSlide(sIdx, x, y, z, w, h, angle)
+            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
+            -- Pre-calculate the Normal Vector (Forward direction of the slide)
+            -- This ensures the camera knows exactly which way is 'out'
+            manifest[sIdx] = {
+                x = x, y = y, z = z,
+                w = w, h = h,
+                angle = angle,
+                nx = math.sin(angle),
+                nz = math.cos(angle)
+            }
         end
 
-        -- Standard single slide
         local function CreateAutoSlide(w, h, thickness, color)
             local sIdx = NumSlides
             local angle = sIdx * (math.pi / 2)
             local radius = 1500
             local x, y, z = math.cos(angle) * radius, math.sin(angle) * radius, sIdx * 3000
-            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
+
             local slide = BuildHalf(w, h, thickness, color, 0, 0)
             api.Obj_X[slide.id], api.Obj_Y[slide.id], api.Obj_Z[slide.id] = x, y, z
             api.Obj_Yaw[slide.id] = angle
-            table.insert(manifest, {x = x, y = y, z = z, w = w, h = h, angle = angle})
-            SpawnCrystalGuard(api, x, y, z, color, angle)
+
+            RegisterSlide(sIdx, x, y, z, w, h, angle)
             NumSlides = NumSlides + 1
         end
 
-        -- Restore Horizontal Split (Top/Bottom)
         local function CreateAutoSlideHorizontalSplit(w, h, thickness, color1, color2)
             local sIdx = NumSlides
             local angle = sIdx * (math.pi / 2)
             local x, y, z = math.cos(angle) * 1500, math.sin(angle) * 1500, sIdx * 3000
-            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
 
             local top = BuildHalf(w, h/2 - 10, thickness, color1, 0, -h/4)
             local bot = BuildHalf(w, h/2 - 10, thickness, color2, 0, h/4)
@@ -78,17 +77,14 @@ local SlidesInternal = {
             api.Obj_X[bot.id], api.Obj_Y[bot.id], api.Obj_Z[bot.id] = x, y, z
             api.Obj_Yaw[top.id], api.Obj_Yaw[bot.id] = angle, angle
 
-            table.insert(manifest, {x = x, y = y, z = z, w = w, h = h, angle = angle})
-            SpawnCrystalGuard(api, x, y, z, color1, angle)
+            RegisterSlide(sIdx, x, y, z, w, h, angle)
             NumSlides = NumSlides + 1
         end
 
-        -- Restore Quad Split
         local function CreateAutoSlideQuad(w, h, thickness, c1, c2, c3, c4)
             local sIdx = NumSlides
             local angle = sIdx * (math.pi / 2)
             local x, y, z = math.cos(angle) * 1500, math.sin(angle) * 1500, sIdx * 3000
-            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
 
             local qw, qh = w/2 - 10, h/2 - 10
             local slides = {
@@ -102,18 +98,58 @@ local SlidesInternal = {
                 api.Obj_Yaw[s.id] = angle
             end
 
-            table.insert(manifest, {x = x, y = y, z = z, w = w, h = h, angle = angle})
-            SpawnCrystalGuard(api, x, y, z, c1, angle)
+            RegisterSlide(sIdx, x, y, z, w, h, angle)
             NumSlides = NumSlides + 1
         end
 
-        --- CONSTRUCTION ---
-        CreateAutoSlide(1600, 900, 40, 0xFFFFD700) -- Gold
-        CreateAutoSlideHorizontalSplit(1600, 900, 20, 0xFF44CCFF, 0xFFCC44FF) -- Cyan/Purple Split
-        CreateAutoSlideQuad(1800, 1000, 60, 0xFF2E8B57, 0xFF8B0000, 0xFFDAA520, 0xFFFFFFFF) -- Quad
-        CreateAutoSlide(3200, 1800, 10, 0xFFFFFFFF) -- Huge White
+        -- Build the sequence
+        CreateAutoSlide(1600, 900, 40, 0xFFFFD700)
+        CreateAutoSlideHorizontalSplit(1600, 900, 20, 0xFF44CCFF, 0xFFCC44FF)
+        CreateAutoSlideQuad(1800, 1000, 60, 0xFF2E8B57, 0xFF8B0000, 0xFFDAA520, 0xFFFFFFFF)
+        CreateAutoSlide(3200, 1800, 10, 0xFFFFFFFF)
 
         return NumSlides, manifest
+    end,
+
+    CrystalCompanion = function(api, manifest, numSlides, crystalsPerSlide)
+        local colors = {0xFFFFCC44, 0xFF44CCFF, 0xFFCC44FF, 0xFFFFFFFF}
+        for i = 0, numSlides - 1 do
+            local s = manifest[i]
+
+            -- Pre-calculate basis vectors for the slide's rotation
+            -- nx is sin(angle), nz is cos(angle)
+            local rightX, rightZ = s.nz, -s.nx
+            local fwdX, fwdZ = s.nx, s.nz
+
+            for j = 1, crystalsPerSlide do
+                -- 1. Generate LOCAL offsets (relative to the slide face)
+                local localX = (math.random() - 0.5) * (s.w * 1.5)
+                local localY = (math.random() - 0.5) * (s.h * 1.5)
+                local localZ = (math.random() - 0.5) * 800
+
+                -- 2. Transform Local -> World using the slide's orientation
+                -- World = Center + (Right * localX) + (Up * localY) + (Forward * localZ)
+                local x = s.x + (rightX * localX) + (fwdX * localZ)
+                local y = s.y + localY
+                local z = s.z + (rightZ * localX) + (fwdZ * localZ)
+
+                local id = api.NumObjects()
+                local chosenColor = colors[math.random(#colors)]
+
+                api.CreateTorus(x, y, z, 25, 10, 8, 3, chosenColor)
+
+                -- Lively rotation distribution
+                api.Obj_Yaw[id] = math.random() * math.pi * 2
+                api.Obj_Pitch[id] = math.random() * math.pi * 2
+
+                -- Movement and tumble
+                api.Obj_VelX[id] = (math.random() - 0.5) * 60
+                api.Obj_VelY[id] = (math.random() - 0.5) * 60
+                api.Obj_VelZ[id] = (math.random() - 0.5) * 60
+                api.Obj_RotSpeedYaw[id] = (math.random() - 0.5) * 5
+                api.Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 5
+            end
+        end
     end
 }
 
@@ -165,6 +201,10 @@ local lastFreeX, lastFreeY, lastFreeZ = 0, 0, 0
 local lastFreeYaw, lastFreePitch = 0, 0
 local contentAlpha, notificationAlpha = 0, 0
 
+local SlideTitles = {} -- Stores {ptr, w, h} for each slide
+local TargetSlide, NumSlides = 0, 0
+local DisplaySlide = 0 -- Add this to track what we actually see
+
 local function ReinitBuffers(w, h)
     CANVAS_W, CANVAS_H = w, h
     HALF_W, HALF_H = w * 0.5, h * 0.5
@@ -174,7 +214,56 @@ local function ReinitBuffers(w, h)
     ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
     Cam.fov = (CANVAS_W / 800) * 600
 end
+local function ReinitFontCache()
+    -- Cache Slide Titles
+    local font = love.graphics.getFont()
+    SlideTitles = {}
+    for i = 0, NumSlides - 1 do
+        local text = "SLIDE " .. (i + 1)
+        local tw, th = font:getWidth(text), font:getHeight()
 
+        -- Draw to temporary canvas
+        local canvas = love.graphics.newCanvas(tw, th)
+        love.graphics.setCanvas(canvas)
+        love.graphics.clear(0,0,0,0)
+        love.graphics.print(text, 0, 0)
+        love.graphics.setCanvas()
+
+        -- Store the FFI pointer and dimensions
+        local imgData = canvas:newImageData()
+        SlideTitles[i] = {
+            ptr = ffi.cast("uint32_t*", imgData:getPointer()),
+            w = tw,
+            h = th,
+            _keepAlive = imgData -- Prevent GC
+        }
+    end
+end
+local function BlitUI(titleObj, targetX, targetY, alpha)
+    if not titleObj or alpha <= 0 then return end
+    local ptr = titleObj.ptr
+    local tw, th = titleObj.w, titleObj.h
+    local opacity = math.floor(alpha * 255)
+
+    for y = 0, th - 1 do
+        local sy = targetY + y
+        if sy >= 0 and sy < CANVAS_H then
+            local screenOffset = sy * CANVAS_W
+            local bufferOffset = y * tw
+            for x = 0, tw - 1 do
+                local sx = targetX + x
+                if sx >= 0 and sx < CANVAS_W then
+                    local px = ptr[bufferOffset + x]
+                    -- Simple alpha check (check the high byte)
+                    if bit.rshift(px, 24) > 0 then
+                        -- Optional: Apply global alpha to the pixel here if needed
+                        ScreenPtr[screenOffset + sx] = px
+                    end
+                end
+            end
+        end
+    end
+end
 -- ==========================================
 -- 3. SOA KERNEL & SHAPES
 -- ==========================================
@@ -197,23 +286,38 @@ local function CreateTriObject(x, y, z, vCount, tCount, radius)
     NumObjects = NumObjects + 1
     return obj
 end
+local function GetViewDistance(w, h)
+    local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
+    return (distScale * Cam.fov) / CANVAS_H + 200
+end
 
 local function updateTargetSide()
-    local id = TargetSlide
-    local fx, fy, fz = Way_X[id], Way_Y[id], Way_Z[id]
+    local s = manifest[TargetSlide]
+    if not s then return end
 
-    -- Calculate back-view as 3D reflection of front waypoint
-    local bx, by, bz = 2*Slide_X[id] - fx, 2*Slide_Y[id] - fy, 2*Slide_Z[id] - fz
+    -- View distance based on slide size
+    local dist = GetViewDistance(s.w, s.h) * 1.5
+    -- Change this in updateTargetSide for a test:
+    -- local dist = (math.max(s.w, s.h) * 0.8) + 500
+    -- Calculate Front (F) and Back (B) positions using the stored normals
+    local fx, fy, fz = s.x + s.nx * dist, s.y, s.z + s.nz * dist
+    local bx, by, bz = s.x - s.nx * dist, s.y, s.z - s.nz * dist
 
+    -- Determine which side the camera is currently closer to
     local dF = (fx - Cam.pos.x)^2 + (fy - Cam.pos.y)^2 + (fz - Cam.pos.z)^2
     local dB = (bx - Cam.pos.x)^2 + (by - Cam.pos.y)^2 + (bz - Cam.pos.z)^2
 
     if dF <= dB then
-        tX, tY, tZ, tYaw = fx, fy, fz, Way_Yaw[id]
+        tX, tY, tZ = fx, fy, fz
+        -- Face the slide center from the front
+        tYaw = math.atan2(s.x - fx, s.z - fz)
     else
-        tX, tY, tZ, tYaw = bx, by, bz, Way_Yaw[id] + math.pi
+        tX, tY, tZ = bx, by, bz
+        -- Face the slide center from the back
+        tYaw = math.atan2(s.x - bx, s.z - bz)
     end
-    tPitch = Way_Pitch[id]
+
+    tPitch = s.pitch or 0
 end
 
 local function UpdateCameraBasis(ent)
@@ -270,86 +374,29 @@ local function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides, 
 end
 
 local function BatchUpdateTransforms(dt)
-    globalTimer = globalTimer + dt
-
-    local PADDING = 500
-    local BOUNCE_DAMPING = 1.0 -- 0.6 60% velocity retention after hitting a slide
-    local CORRIDOR_LIMIT = 4000
-
     for i = 0, NumObjects - 1 do
-        -- APPLY INDIVIDUAL MOVEMENT
+        -- 1. Apply individual movement
         Obj_X[i] = Obj_X[i] + Obj_VelX[i] * dt
         Obj_Y[i] = Obj_Y[i] + Obj_VelY[i] * dt
         Obj_Z[i] = Obj_Z[i] + Obj_VelZ[i] * dt
 
-        -- SLIDE COLLISION (The "Actual Bounce" Logic)
-        local nearIdx = math.floor((Obj_Z[i] + 1500) / 3000)
-        nearIdx = math.max(0, math.min(NumSlides - 1, nearIdx))
-
-        local sx, sy, sz = Slide_X[nearIdx], Slide_Y[nearIdx], Slide_Z[nearIdx]
-        local sAngle = nearIdx * (math.pi / 2)
-
-        -- Local Space Math
-        local dx, dy = Obj_X[i] - sx, Obj_Y[i] - sy
-        local dz = Obj_Z[i] - sz
-        local localX = dx * math.cos(-sAngle) - dz * math.sin(-sAngle)
-        local localZ = dx * math.sin(-sAngle) + dz * math.cos(-sAngle)
-
-        -- Define the slide's "No-Fly Zone"
-        local slideW, slideH = 1800, 1000
-        local halfThick = 50 + PADDING
-
-        -- Check if inside the box
-        if math.abs(localZ) < halfThick then
-            if math.abs(localX) < (slideW/2 + PADDING) and math.abs(dy) < (slideH/2 + PADDING) then
-
-                -- BOUNCE: Invert velocity relative to the slide's face
-                -- We rotate the velocity into local space to flip the correct component
-                local velX, velZ = Obj_VelX[i], Obj_VelZ[i]
-                local localVelX = velX * math.cos(-sAngle) - velZ * math.sin(-sAngle)
-                local localVelZ = velX * math.sin(-sAngle) + velZ * math.cos(-sAngle)
-
-                -- Flip local Z velocity (the one hitting the glass)
-                localVelZ = -localVelZ * BOUNCE_DAMPING
-
-                -- Snap to surface to prevent "stuck" crystals
-                if localZ > 0 then localZ = halfThick else localZ = -halfThick end
-
-                -- Transform Velocity & Position back to World Space
-                Obj_VelX[i] = localVelX * math.cos(sAngle) - localVelZ * math.sin(sAngle)
-                Obj_VelZ[i] = localVelX * math.sin(sAngle) + localVelZ * math.cos(sAngle)
-
-                Obj_X[i] = sx + (localX * math.cos(sAngle) - localZ * math.sin(sAngle))
-                Obj_Z[i] = sz + (localX * math.sin(sAngle) + localZ * math.cos(sAngle))
-            end
-        end
-
-        -- BOUNDARY STEERING (Z-looping)
-        local totalLength = NumSlides * 3000
-        if Obj_Z[i] < -1000 then Obj_Z[i] = totalLength end
-        if Obj_Z[i] > totalLength then Obj_Z[i] = -1000 end
-
-        -- HELIX GRAVITY (Pull to center)
-        local distSq = Obj_X[i]^2 + Obj_Y[i]^2
-        if distSq > CORRIDOR_LIMIT^2 then
-            Obj_VelX[i] = Obj_VelX[i] - (Obj_X[i] * 0.01)
-            Obj_VelY[i] = Obj_VelY[i] - (Obj_Y[i] * 0.01)
-        end
-
-        -- CRYSTAL ROTATION
+        -- 2. Apply individual rotation
         Obj_Yaw[i] = Obj_Yaw[i] + Obj_RotSpeedYaw[i] * dt
         Obj_Pitch[i] = Obj_Pitch[i] + Obj_RotSpeedPitch[i] * dt
 
-        -- 2. TRANSFORMATION LAYER (Calculates basis for both Crystals AND Slides)
-        local cy, sy = math.cos(Obj_Yaw[i]), math.sin(Obj_Yaw[i])
-        local cp, sp = math.cos(Obj_Pitch[i]), math.sin(Obj_Pitch[i])
+        -- 3. Calculate transformation matrix components
+        local cy, sy = cos(Obj_Yaw[i]), sin(Obj_Yaw[i])
+        local cp, sp = cos(Obj_Pitch[i]), sin(Obj_Pitch[i])
 
-        Obj_FWX[i], Obj_FWY[i], Obj_FWZ[i] = sy * cp, sp, cy * cp
+        local fwx, fwy, fwz = sy * cp, sp, cy * cp
         local rtx, rtz = cy, -sy
+
+        Obj_FWX[i], Obj_FWY[i], Obj_FWZ[i] = fwx, fwy, fwz
         Obj_RTX[i], Obj_RTZ[i] = rtx, rtz
-        Obj_UPX[i] = Obj_FWY[i] * rtz
-        Obj_UPY[i] = Obj_FWZ[i] * rtx - Obj_FWX[i] * rtz
-        Obj_UPZ[i] = -Obj_FWY[i] * rtx
+
+        Obj_UPX[i] = fwy * rtz
+        Obj_UPY[i] = fwz * rtx - fwx * rtz
+        Obj_UPZ[i] = -fwy * rtx
     end
 end
 -- ==========================================
@@ -441,74 +488,18 @@ end
 -- ==========================================
 -- 5. LÖVE CALLBACKS
 -- ==========================================
-local function GetViewDistance(w, h)
-    local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
-    return (distScale * Cam.fov) / CANVAS_H + 200
-end
 function love.load()
-    local displayCount = love.window.getDisplayCount()
-    local primaryIndex = 1 -- Fallback
-
-    -- Find which index is actually the Primary (0,0) monitor
-    for i = 1, displayCount do
-        local x, y = love.window.getPosition(i)
-        if x == 0 and y == 0 then
-            primaryIndex = i
-            break
-        end
-    end
-
-    -- Get hardware-validated modes for the TRUE primary monitor
-    local modes = love.window.getFullscreenModes(primaryIndex)
-    local windowW, windowH = love.window.getDesktopDimensions(primaryIndex)
-
-    if #modes > 0 then
-        -- Use the highest hardware-supported resolution found
-        windowW = modes[1].width
-        windowH = modes[1].height
-    end
-
-    -- Force 'exclusive' fullscreen on the specific primary display index
-    love.window.setMode(windowW, windowH, {
+    love.window.setMode(800, 800, {
         fullscreen = true,
-        fullscreentype = "exclusive",
-        display = primaryIndex, -- Target the specific hardware index
-        vsync = 1,
-        centered = true
+        vsync = 1
     })
-
+    local windowW, windowH = love.graphics.getDimensions()
     -- Your existing buffer initialization
     ReinitBuffers(windowW, windowH)
+
     love.mouse.setRelativeMode(isMouseCaptured)
 
-    Cam.pos = {x=0, y=0, z=0}
-
-    -- 1. Create the 500 "Star" Objects (Background)
-    local colors = {0xFFFFCC44, 0xFF44CCFF, 0xFFCC44FF, 0xFFFFFFFF}
-    math.randomseed(os.time())
-    -- Inside your NEW love.load, replace the 500-star loop with this:
-    for i = 1, 500 do
-        local id = NumObjects
-        local col = colors[math.random(#colors)]
-        CreateTorus(0, 0, 0, 25, 10, 8, 3, col)
-
-        local angle = math.random() * math.pi * 2
-        local dist = 1200 + math.random(800) -- This distance creates the "Corridor" feel
-
-        Obj_X[id] = math.cos(angle) * dist
-        Obj_Y[id] = math.sin(angle) * dist
-        Obj_Z[id] = math.random(0, 12000)
-
-        -- The Drift: High velocity variation
-        Obj_VelX[id] = (math.random() - 0.5) * 80
-        Obj_VelY[id] = (math.random() - 0.5) * 80
-        Obj_VelZ[id] = (math.random() - 0.5) * 80
-
-        -- The Momentum: Crucial both Yaw AND Pitch rotation
-        Obj_RotSpeedYaw[id] = (math.random() - 0.5) * 3
-        Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 3 -- Restore this!
-    end
-    -- 2. Define the slideAPI (Now with Torus support)
+    -- Define the slideAPI
     local slideAPI = {
         CreateTriObject = CreateTriObject,
         CreateTorus = CreateTorus,
@@ -518,50 +509,53 @@ function love.load()
         Obj_VelX = Obj_VelX, Obj_VelY = Obj_VelY, Obj_VelZ = Obj_VelZ,
         Obj_RotSpeedYaw = Obj_RotSpeedYaw,
         Obj_RotSpeedPitch = Obj_RotSpeedPitch,
-        Slide_X = Slide_X, Slide_Y = Slide_Y, Slide_Z = Slide_Z
+        Slide_X = Slide_X, Slide_Y = Slide_Y, Slide_Z = Slide_Z,
+        NumObjects = function() return NumObjects end
     }
 
-    -- 3. Run the Slide Builder
-    -- Note: We pass 0 as startSlideCount so TargetSlide 0 is the first platform
     NumSlides, manifest = SlidesInternal.build(slideAPI, 0)
+    SlidesInternal.CrystalCompanion(slideAPI, manifest, NumSlides, 125)
+    -- 1. Initialize State
+    TargetSlide = 0
+    DisplaySlide = 0
+    lerpT = 1.0       -- Start at 1.0 so we don't lerp on frame 1
+    arrivalTimer = 0
+    isSettled = true
 
-    -- 4. Calculate Camera Waypoints (Using the manifest we just got)
-    for i, slide in ipairs(manifest) do
-        local sIdx = i - 1
-        local dist = GetViewDistance(slide.w, slide.h) * 1.5
-        local offsetX = math.sin(slide.angle) * dist
-        local offsetZ = -math.cos(slide.angle) * dist
-
-        Way_X[sIdx] = slide.x + offsetX
-        Way_Y[sIdx] = slide.y
-        Way_Z[sIdx] = slide.z + offsetZ
-        Way_Yaw[sIdx] = math.atan2(-offsetX, -offsetZ)
-
-        -- Start the camera at slide 0
-        if sIdx == 0 then
-            Cam.pos.x, Cam.pos.y, Cam.pos.z = Way_X[0], Way_Y[0], Way_Z[0]
-            Cam.yaw = Way_Yaw[0]
-        end
-    end
+    -- 2. Force Cam to Origin briefly to ensure updateTargetSide picks a side
+    Cam.pos.x, Cam.pos.y, Cam.pos.z = 0, 0, 0
     updateTargetSide()
+
+    -- 3. Snap Camera and Lerp-Anchors to the result
+    Cam.pos.x, Cam.pos.y, Cam.pos.z = tX, tY, tZ
+    Cam.yaw, Cam.pitch = tYaw, tPitch
+    startX, startY, startZ = tX, tY, tZ
+    startYaw, startPitch = tYaw, tPitch
+
+    -- 4. Final Sync
+    UpdateCameraBasis(Cam)
+    ReinitFontCache()
 end
 
 function love.update(dt)
     if pendingResize then
         resizeTimer = resizeTimer - dt
-        if resizeTimer <= 0 then ReinitBuffers(love.graphics.getWidth(), love.graphics.getHeight()); pendingResize = false end
+        if resizeTimer <= 0 then ReinitBuffers(love.graphics.getWidth(), love.graphics.getHeight()); pendingResize = false; ReinitFontCache() end
         return
     end
 
     if presentationMode and NumSlides > 0 then
         lerpT = min(1.0, lerpT + dt * 1) -- 2 was fast mode
         local easeT = 1 - (1 - lerpT) * (1 - lerpT)
-
         if lerpT < 1.0 then
             arrivalTimer = 0
             isSettled = false
-            contentAlpha = max(0, 1 - (lerpT / 0.1))
-            notificationAlpha = (lerpT > 0.9) and ((lerpT - 0.9) / 0.1) or 0
+            contentAlpha = max(0, 1 - (lerpT / 0.1)) -- Fades out in first 10% of flight
+
+            -- SWAP INDEX HERE: When alpha hits 0, switch the text
+            if contentAlpha <= 0 then
+                DisplaySlide = TargetSlide
+            end
 
             Cam.pos.x = lerp(startX, tX, easeT)
             Cam.pos.y = lerp(startY, tY, easeT)
@@ -574,7 +568,6 @@ function love.update(dt)
 
             isSettled = true
             arrivalTimer = arrivalTimer + dt
-            notificationAlpha = (arrivalTimer < 1.0) and 1 or max(0, 1 - (arrivalTimer - 1.0) / 0.5)
             contentAlpha = min(1, arrivalTimer / 0.5)
         end
     else
@@ -718,8 +711,17 @@ function love.draw()
             objectsCulled = objectsCulled + 1
         end
     end
+    -- ... inside love.draw after the TriObjects loop ...
+    if presentationMode then
+        local title = SlideTitles[DisplaySlide]
+        -- Center it at the bottom
+        local tx = math.floor(HALF_W - title.w / 2)
+        local ty = math.floor(CANVAS_H - 100)
+        BlitUI(title, tx, ty, contentAlpha)
+    end
 
     ScreenImage:replacePixels(ScreenBuffer)
+
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
     love.graphics.setBlendMode("alpha")
@@ -754,8 +756,10 @@ function love.keypressed(key)
         startX, startY, startZ = Cam.pos.x, Cam.pos.y, Cam.pos.z
         startYaw, startPitch = Cam.yaw, Cam.pitch
         lerpT, arrivalTimer, contentAlpha = 0, 0, 0
+
+        -- Change TargetSlide, but DON'T change DisplaySlide yet!
         TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
-         updateTargetSide()
+        updateTargetSide()
     elseif key == "j" and not presentationMode then
         isMouseCaptured = not isMouseCaptured
         love.mouse.setRelativeMode(isMouseCaptured)
