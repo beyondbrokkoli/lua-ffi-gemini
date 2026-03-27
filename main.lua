@@ -1,8 +1,3 @@
-
-
-
-
-
 -- main.lua
 local ffi = require("ffi")
 local bit = require("bit")
