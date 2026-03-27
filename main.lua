@@ -389,16 +389,19 @@ local function BatchUpdateTransforms(dt)
     end
 end
 
--- ... Rest of your functions (RasterizeTriangle, love.load, etc.) ...
 function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
     if y1 > y2 then x1,x2 = x2,x1; y1,y2 = y2,y1; z1,z2 = z2,z1 end
     if y1 > y3 then x1,x3 = x3,x1; y1,y3 = y3,y1; z1,z3 = z3,z1 end
     if y2 > y3 then x2,x3 = x3,x2; y2,y3 = y3,y2; z2,z3 = z3,z2 end
+
     local total_height = y3 - y1
     if total_height <= 0 then return end
+
     local inv_total = 1.0 / total_height
     local y_start = max(0, ceil(y1))
     local y_end   = min(CANVAS_H - 1, floor(y3))
+
+    -- UPPER TRIANGLE
     local dy_upper = y2 - y1
     if dy_upper > 0 then
         local inv_upper = 1.0 / dy_upper
@@ -408,17 +411,23 @@ function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
             local t_half  = (y - y1) * inv_upper
             local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
             local bx, bz = x1 + (x2 - x1) * t_half,  z1 + (z2 - z1) * t_half
+
             if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
+
             local row_width = bx - ax
             if row_width > 0 then
+                -- Pure Z-step interpolation, no bias math needed
                 local z_step = (bz - az) / row_width
                 local start_x = max(0, ceil(ax))
                 local end_x   = min(CANVAS_W - 1, floor(bx))
                 local current_z = az + z_step * (start_x - ax)
-                local row_ptr = ScreenPtr + (y * CANVAS_W)
-                local z_ptr   = ZBuffer   + (y * CANVAS_W)
+
+                local offset = y * CANVAS_W
+                local row_ptr = ScreenPtr + offset
+                local z_ptr   = ZBuffer + offset
+
                 for x = start_x, end_x do
-                    if current_z < z_ptr[x] - 0.001 then
+                    if current_z < z_ptr[x] then
                         z_ptr[x] = current_z
                         row_ptr[x] = shadedColor
                     end
@@ -427,6 +436,8 @@ function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
             end
         end
     end
+
+    -- LOWER TRIANGLE
     local dy_lower = y3 - y2
     if dy_lower > 0 then
         local inv_lower = 1.0 / dy_lower
@@ -436,17 +447,22 @@ function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
             local t_half  = (y - y2) * inv_lower
             local ax, az = x1 + (x3 - x1) * t_total, z1 + (z3 - z1) * t_total
             local bx, bz = x2 + (x3 - x2) * t_half,  z2 + (z3 - z2) * t_half
+
             if ax > bx then ax, bx = bx, ax; az, bz = bz, az end
+
             local row_width = bx - ax
             if row_width > 0 then
                 local z_step = (bz - az) / row_width
                 local start_x = max(0, ceil(ax))
                 local end_x   = min(CANVAS_W - 1, floor(bx))
                 local current_z = az + z_step * (start_x - ax)
-                local row_ptr = ScreenPtr + (y * CANVAS_W)
-                local z_ptr   = ZBuffer   + (y * CANVAS_W)
+
+                local offset = y * CANVAS_W
+                local row_ptr = ScreenPtr + offset
+                local z_ptr   = ZBuffer + offset
+
                 for x = start_x, end_x do
-                    if current_z < z_ptr[x] - 0.001 then
+                    if current_z < z_ptr[x] then
                         z_ptr[x] = current_z
                         row_ptr[x] = shadedColor
                     end
@@ -550,60 +566,69 @@ function love.draw()
         local id = obj.id
         local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
         local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
+        -- Near-Plane Sphere Culling
+        if cz_center + Obj_Radius[id] < 0.1 then goto continue end
         local radius = Obj_Radius[id]
-        if cz_center + radius > 0.1 then
-            local cx_center = dx*crt_x + dy*crt_y + dz*crt_z
-            local cy_center = dx*cup_x + dy*cup_y + dz*cup_z
-            local depth = max(0.1, cz_center)
-            local boundX = (HALF_W * depth / cfov) + radius
-            local boundY = (HALF_H * depth / cfov) + radius
-            if abs(cx_center) <= boundX and abs(cy_center) <= boundY then
-                local rx, ry, rz = Obj_RTX[id], 0, Obj_RTZ[id]
-                local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
-                local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-                local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-                for i = 0, obj.vCount - 1 do
-                    local lx, ly, lz = obj.vx[i], obj.vy[i], obj.vz[i]
-                    local wx = ox + lx*rx + ly*ux + lz*fx
-                    local wy = oy + lx*ry + ly*uy + lz*fy
-                    local wz = oz + lx*rz + ly*uz + lz*fz
-                    obj.cx[i], obj.cy[i], obj.cz[i] = wx, wy, wz
-                    local vdx, vdy, vdz = wx - cpx, wy - cpy, wz - cpz
-                    local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
-                    if cz < 0.1 then obj.pValid[i] = false else
-                        local f = cfov / cz
-                        obj.px[i] = HALF_W + (vdx*crt_x + vdy*crt_y + vdz*crt_z) * f
-                        obj.py[i] = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
-                        obj.pz[i] = cz; obj.pValid[i] = true
-                    end
+
+        local cx_center = dx*crt_x + dy*crt_y + dz*crt_z
+        local cy_center = dx*cup_x + dy*cup_y + dz*cup_z
+        local depth = max(0.1, cz_center)
+        local boundX = (HALF_W * depth / cfov) + radius
+        local boundY = (HALF_H * depth / cfov) + radius
+        if abs(cx_center) <= boundX and abs(cy_center) <= boundY then
+            local rx, ry, rz = Obj_RTX[id], 0, Obj_RTZ[id]
+            local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
+            local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+            local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+            for i = 0, obj.vCount - 1 do
+                local lx, ly, lz = obj.vx[i], obj.vy[i], obj.vz[i]
+                local wx = ox + lx*rx + ly*ux + lz*fx
+                local wy = oy + lx*ry + ly*uy + lz*fy
+                local wz = oz + lx*rz + ly*uz + lz*fz
+                obj.cx[i], obj.cy[i], obj.cz[i] = wx, wy, wz
+                local vdx, vdy, vdz = wx - cpx, wy - cpy, wz - cpz
+                local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
+                if cz < 0.1 then
+                    obj.pValid[i] = false
+                else
+                    local f = cfov / cz
+                    obj.px[i] = HALF_W + (vdx*crt_x + vdy*crt_y + vdz*crt_z) * f
+                    obj.py[i] = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
+                    -- Apply depth-relative bias here
+                    -- Use < 1.0 to pull geometry forward, or > 1.0 to push it back
+                    local bias = Is_Crystal[id] and 1.01 or 1.0
+                    obj.pz[i] = cz * bias
+
+                    obj.pValid[i] = true
                 end
-                for i = 0, obj.tCount - 1 do
-                    local t = obj.tris[i]
-                    local i1, i2, i3 = t.v1, t.v2, t.v3
-                    if obj.pValid[i1] and obj.pValid[i2] and obj.pValid[i3] then
-                        local px1, py1 = obj.px[i1], obj.py[i1]
-                        local px2, py2 = obj.px[i2], obj.py[i2]
-                        local px3, py3 = obj.px[i3], obj.py[i3]
-                        local winding = (px2 - px1) * (py3 - py1) - (py2 - py1) * (px3 - px1)
-                        if winding < 0 then
-                            local wx1, wy1, wz1 = obj.cx[i1], obj.cy[i1], obj.cz[i1]
-                            local wx2, wy2, wz2 = obj.cx[i2], obj.cy[i2], obj.cz[i2]
-                            local wx3, wy3, wz3 = obj.cx[i3], obj.cy[i3], obj.cz[i3]
-                            local nx = (wy2-wy1)*(wz3-wz1) - (wz2-wz1)*(wy3-wy1)
-                            local ny = (wz2-wz1)*(wx3-wx1) - (wx2-wx1)*(wz3-wz1)
-                            local nz = (wx2-wx1)*(wy3-wy1) - (wy2-wy1)*(wx3-wx1)
-                            local len = sqrt(nx*nx + ny*ny + nz*nz)
-                            local lightDot = max(0.2, min(1.0, (nx*0.5 + ny*1.0 + nz*0.5) / len))
-                            local tc = t.color
-                            local r = bit.band(bit.rshift(tc, 16), 0xFF) * lightDot
-                            local g = bit.band(bit.rshift(tc, 8), 0xFF) * lightDot
-                            local b = bit.band(tc, 0xFF) * lightDot
-                            RasterizeTriangle(px1, py1, obj.pz[i1], px2, py2, obj.pz[i2], px3, py3, obj.pz[i3], 0xFF000000 + bit.lshift(r, 16) + bit.lshift(g, 8) + b)
-                        end
+            end
+            for i = 0, obj.tCount - 1 do
+                local t = obj.tris[i]
+                local i1, i2, i3 = t.v1, t.v2, t.v3
+                if obj.pValid[i1] and obj.pValid[i2] and obj.pValid[i3] then
+                    local px1, py1 = obj.px[i1], obj.py[i1]
+                    local px2, py2 = obj.px[i2], obj.py[i2]
+                    local px3, py3 = obj.px[i3], obj.py[i3]
+                    local winding = (px2 - px1) * (py3 - py1) - (py2 - py1) * (px3 - px1)
+                    if winding < 0 then
+                        local wx1, wy1, wz1 = obj.cx[i1], obj.cy[i1], obj.cz[i1]
+                        local wx2, wy2, wz2 = obj.cx[i2], obj.cy[i2], obj.cz[i2]
+                        local wx3, wy3, wz3 = obj.cx[i3], obj.cy[i3], obj.cz[i3]
+                        local nx = (wy2-wy1)*(wz3-wz1) - (wz2-wz1)*(wy3-wy1)
+                        local ny = (wz2-wz1)*(wx3-wx1) - (wx2-wx1)*(wz3-wz1)
+                        local nz = (wx2-wx1)*(wy3-wy1) - (wy2-wy1)*(wx3-wx1)
+                        local len = sqrt(nx*nx + ny*ny + nz*nz)
+                        local lightDot = max(0.2, min(1.0, (nx*0.5 + ny*1.0 + nz*0.5) / len))
+                        local tc = t.color
+                        local r = bit.band(bit.rshift(tc, 16), 0xFF) * lightDot
+                        local g = bit.band(bit.rshift(tc, 8), 0xFF) * lightDot
+                        local b = bit.band(tc, 0xFF) * lightDot
+                        RasterizeTriangle(px1, py1, obj.pz[i1], px2, py2, obj.pz[i2], px3, py3, obj.pz[i3], 0xFF000000 + bit.lshift(r, 16) + bit.lshift(g, 8) + b)
                     end
                 end
             end
         end
+        ::continue::
     end
     if presentationMode then BlitUI(SlideTitles[DisplaySlide], math.floor(HALF_W - SlideTitles[DisplaySlide].w / 2), math.floor(CANVAS_H - 100), contentAlpha) end
     ScreenImage:replacePixels(ScreenBuffer)
