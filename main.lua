@@ -1,3 +1,8 @@
+
+
+
+
+
 -- main.lua
 local ffi = require("ffi")
 local bit = require("bit")
@@ -18,77 +23,105 @@ ffi.cdef[[
 
 local floor, ceil, max, min = math.floor, math.ceil, math.max, math.min
 local sqrt, cos, sin = math.sqrt, math.cos, math.sin
-
 local SlidesInternal = {
     build = function(api, startSlideCount)
         local NumSlides = startSlideCount
         local manifest = {}
 
+        -- Helper to create the actual box geometry
+        local function BuildHalf(w, h, thickness, color, offX, offY)
+            local slide = api.CreateTriObject(0, 0, 0, 8, 12, max(w, h))
+            local hw, hh, ht = w/2, h/2, thickness/2
+            -- Apply offsets directly to vertices so the object "rotates" around the center of the split group
+            local verts = {
+                {-hw+offX, -hh+offY, -ht}, {hw+offX, -hh+offY, -ht},
+                {hw+offX, hh+offY, -ht}, {-hw+offX, hh+offY, -ht},
+                {-hw+offX, -hh+offY, ht}, {hw+offX, -hh+offY, ht},
+                {hw+offX, hh+offY, ht}, {-hw+offX, hh+offY, ht}
+            }
+            for i, v in ipairs(verts) do slide.vx[i-1], slide.vy[i-1], slide.vz[i-1] = v[1], v[2], v[3] end
+            local indices = { 0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7 }
+            for i=0, 11 do slide.tris[i] = {v1=indices[i*3+1], v2=indices[i*3+2], v3=indices[i*3+3], color=color} end
+            return slide
+        end
+
+        local function SpawnCrystalGuard(api, x, y, z, color, angle)
+            local offset = 800
+            local gx = x + math.cos(angle) * offset
+            local gz = z - math.sin(angle) * offset
+            local tor = api.CreateTorus(gx, y, gz, 60, 15, 8, 4, color)
+            local id = tor.id
+            api.Obj_VelX[id], api.Obj_VelY[id], api.Obj_VelZ[id] = (math.random()-0.5)*100, (math.random()-0.5)*100, (math.random()-0.5)*100
+            api.Obj_RotSpeedYaw[id], api.Obj_RotSpeedPitch[id] = 4.0, 2.0
+        end
+
+        -- Standard single slide
         local function CreateAutoSlide(w, h, thickness, color)
             local sIdx = NumSlides
             local angle = sIdx * (math.pi / 2)
             local radius = 1500
             local x, y, z = math.cos(angle) * radius, math.sin(angle) * radius, sIdx * 3000
-
             api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
-
-            local slide = api.CreateTriObject(x, y, z, 8, 12, max(w, h))
+            local slide = BuildHalf(w, h, thickness, color, 0, 0)
+            api.Obj_X[slide.id], api.Obj_Y[slide.id], api.Obj_Z[slide.id] = x, y, z
             api.Obj_Yaw[slide.id] = angle
-
-            local hw, hh, ht = w/2, h/2, thickness/2
-            local verts = { {-hw, -hh, -ht}, {hw, -hh, -ht}, {hw, hh, -ht}, {-hw, hh, -ht}, {-hw, -hh, ht}, {hw, -hh, ht}, {hw, hh, ht}, {-hw, hh, ht} }
-            for i, v in ipairs(verts) do slide.vx[i-1], slide.vy[i-1], slide.vz[i-1] = v[1], v[2], v[3] end
-
-            local indices = { 0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7 }
-            for i=0, 11 do slide.tris[i] = {v1=indices[i*3+1], v2=indices[i*3+2], v3=indices[i*3+3], color=color or 0xFFD2B48C} end
-
-            -- Populate manifest instead of camera/waypoint math
             table.insert(manifest, {x = x, y = y, z = z, w = w, h = h, angle = angle})
-
+            SpawnCrystalGuard(api, x, y, z, color, angle)
             NumSlides = NumSlides + 1
         end
 
-        local function CreateAutoSlideHorizontalSplit(w, h, thickness, gap, colorL, colorR)
+        -- Restore Horizontal Split (Top/Bottom)
+        local function CreateAutoSlideHorizontalSplit(w, h, thickness, color1, color2)
             local sIdx = NumSlides
             local angle = sIdx * (math.pi / 2)
-            local radius = 1500
-            local cx, cy, cz = math.cos(angle) * radius, math.sin(angle) * radius, sIdx * 3000
+            local x, y, z = math.cos(angle) * 1500, math.sin(angle) * 1500, sIdx * 3000
+            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
 
-            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = cx, cy, cz
+            local top = BuildHalf(w, h/2 - 10, thickness, color1, 0, -h/4)
+            local bot = BuildHalf(w, h/2 - 10, thickness, color2, 0, h/4)
+            api.Obj_X[top.id], api.Obj_Y[top.id], api.Obj_Z[top.id] = x, y, z
+            api.Obj_X[bot.id], api.Obj_Y[bot.id], api.Obj_Z[bot.id] = x, y, z
+            api.Obj_Yaw[top.id], api.Obj_Yaw[bot.id] = angle, angle
 
-            local rtX, rtZ = math.cos(angle), -math.sin(angle)
-            local hw = w / 2
-            local offset = (hw / 2) + (gap / 2)
-
-            local function BuildHalf(dir, col)
-                local sx, sz = cx + rtX * offset * dir, cz + rtZ * offset * dir
-                local slide = api.CreateTriObject(sx, cy, sz, 8, 12, max(hw, h))
-                api.Obj_Yaw[slide.id] = angle
-                local ihw, ihh, iht = hw/2, h/2, thickness/2
-                local verts = { {-ihw, -ihh, -iht}, {ihw, -ihh, -iht}, {ihw, ihh, -iht}, {-ihw, ihh, -iht}, {-ihw, -ihh, iht}, {ihw, -ihh, iht}, {ihw, ihh, iht}, {-ihw, ihh, iht} }
-                for i, v in ipairs(verts) do slide.vx[i-1], slide.vy[i-1], slide.vz[i-1] = v[1], v[2], v[3] end
-                local indices = { 0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7 }
-                for i=0, 11 do slide.tris[i] = {v1=indices[i*3+1], v2=indices[i*3+2], v3=indices[i*3+3], color=col or 0xFFD2B48C} end
-            end
-
-            BuildHalf(-1, colorL)
-            BuildHalf(1, colorR)
-
-            -- Treat the split as one unified block for the layout manifest
-            table.insert(manifest, {x = cx, y = cy, z = cz, w = w + gap, h = h, angle = angle})
-
+            table.insert(manifest, {x = x, y = y, z = z, w = w, h = h, angle = angle})
+            SpawnCrystalGuard(api, x, y, z, color1, angle)
             NumSlides = NumSlides + 1
         end
 
-        -- Generate slides
-        CreateAutoSlide(1600, 900, 40, 0xFFFFD700)
-        CreateAutoSlideHorizontalSplit(1600, 900, 20, 100, 0xFF44CCFF, 0xFFCC44FF)
-        CreateAutoSlide(1800, 1000, 60, 0xFF2E8B57)
-        CreateAutoSlide(3200, 1800, 10, 0xFFFFFFFF)
+        -- Restore Quad Split
+        local function CreateAutoSlideQuad(w, h, thickness, c1, c2, c3, c4)
+            local sIdx = NumSlides
+            local angle = sIdx * (math.pi / 2)
+            local x, y, z = math.cos(angle) * 1500, math.sin(angle) * 1500, sIdx * 3000
+            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
+
+            local qw, qh = w/2 - 10, h/2 - 10
+            local slides = {
+                BuildHalf(qw, qh, thickness, c1, -w/4, -h/4),
+                BuildHalf(qw, qh, thickness, c2,  w/4, -h/4),
+                BuildHalf(qw, qh, thickness, c3, -w/4,  h/4),
+                BuildHalf(qw, qh, thickness, c4,  w/4,  h/4)
+            }
+            for _, s in ipairs(slides) do
+                api.Obj_X[s.id], api.Obj_Y[s.id], api.Obj_Z[s.id] = x, y, z
+                api.Obj_Yaw[s.id] = angle
+            end
+
+            table.insert(manifest, {x = x, y = y, z = z, w = w, h = h, angle = angle})
+            SpawnCrystalGuard(api, x, y, z, c1, angle)
+            NumSlides = NumSlides + 1
+        end
+
+        --- CONSTRUCTION ---
+        CreateAutoSlide(1600, 900, 40, 0xFFFFD700) -- Gold
+        CreateAutoSlideHorizontalSplit(1600, 900, 20, 0xFF44CCFF, 0xFFCC44FF) -- Cyan/Purple Split
+        CreateAutoSlideQuad(1800, 1000, 60, 0xFF2E8B57, 0xFF8B0000, 0xFFDAA520, 0xFFFFFFFF) -- Quad
+        CreateAutoSlide(3200, 1800, 10, 0xFFFFFFFF) -- Huge White
 
         return NumSlides, manifest
     end
 }
+
 -- ==========================================
 -- 2. GLOBAL STATE, BUFFERS & SOA
 -- ==========================================
@@ -249,71 +282,68 @@ local function BatchUpdateTransforms(dt)
     local CORRIDOR_LIMIT = 4000
 
     for i = 0, NumObjects - 1 do
-        -- 1. PHYSICS LAYER (Only for Crystals: 0-499)
-        if i < 500 then
-            -- APPLY INDIVIDUAL MOVEMENT
-            Obj_X[i] = Obj_X[i] + Obj_VelX[i] * dt
-            Obj_Y[i] = Obj_Y[i] + Obj_VelY[i] * dt
-            Obj_Z[i] = Obj_Z[i] + Obj_VelZ[i] * dt
+        -- APPLY INDIVIDUAL MOVEMENT
+        Obj_X[i] = Obj_X[i] + Obj_VelX[i] * dt
+        Obj_Y[i] = Obj_Y[i] + Obj_VelY[i] * dt
+        Obj_Z[i] = Obj_Z[i] + Obj_VelZ[i] * dt
 
-            -- SLIDE COLLISION (The "Actual Bounce" Logic)
-            local nearIdx = math.floor((Obj_Z[i] + 1500) / 3000)
-            nearIdx = math.max(0, math.min(NumSlides - 1, nearIdx))
+        -- SLIDE COLLISION (The "Actual Bounce" Logic)
+        local nearIdx = math.floor((Obj_Z[i] + 1500) / 3000)
+        nearIdx = math.max(0, math.min(NumSlides - 1, nearIdx))
 
-            local sx, sy, sz = Slide_X[nearIdx], Slide_Y[nearIdx], Slide_Z[nearIdx]
-            local sAngle = nearIdx * (math.pi / 2)
+        local sx, sy, sz = Slide_X[nearIdx], Slide_Y[nearIdx], Slide_Z[nearIdx]
+        local sAngle = nearIdx * (math.pi / 2)
 
-            -- Local Space Math
-            local dx, dy = Obj_X[i] - sx, Obj_Y[i] - sy
-            local dz = Obj_Z[i] - sz
-            local localX = dx * math.cos(-sAngle) - dz * math.sin(-sAngle)
-            local localZ = dx * math.sin(-sAngle) + dz * math.cos(-sAngle)
+        -- Local Space Math
+        local dx, dy = Obj_X[i] - sx, Obj_Y[i] - sy
+        local dz = Obj_Z[i] - sz
+        local localX = dx * math.cos(-sAngle) - dz * math.sin(-sAngle)
+        local localZ = dx * math.sin(-sAngle) + dz * math.cos(-sAngle)
 
-            -- Define the slide's "No-Fly Zone"
-            local slideW, slideH = 1800, 1000
-            local halfThick = 50 + PADDING
+        -- Define the slide's "No-Fly Zone"
+        local slideW, slideH = 1800, 1000
+        local halfThick = 50 + PADDING
 
-            -- Check if inside the box
-            if math.abs(localZ) < halfThick then
-                if math.abs(localX) < (slideW/2 + PADDING) and math.abs(dy) < (slideH/2 + PADDING) then
+        -- Check if inside the box
+        if math.abs(localZ) < halfThick then
+            if math.abs(localX) < (slideW/2 + PADDING) and math.abs(dy) < (slideH/2 + PADDING) then
 
-                    -- BOUNCE: Invert velocity relative to the slide's face
-                    -- We rotate the velocity into local space to flip the correct component
-                    local velX, velZ = Obj_VelX[i], Obj_VelZ[i]
-                    local localVelX = velX * math.cos(-sAngle) - velZ * math.sin(-sAngle)
-                    local localVelZ = velX * math.sin(-sAngle) + velZ * math.cos(-sAngle)
+                -- BOUNCE: Invert velocity relative to the slide's face
+                -- We rotate the velocity into local space to flip the correct component
+                local velX, velZ = Obj_VelX[i], Obj_VelZ[i]
+                local localVelX = velX * math.cos(-sAngle) - velZ * math.sin(-sAngle)
+                local localVelZ = velX * math.sin(-sAngle) + velZ * math.cos(-sAngle)
 
-                    -- Flip local Z velocity (the one hitting the glass)
-                    localVelZ = -localVelZ * BOUNCE_DAMPING
+                -- Flip local Z velocity (the one hitting the glass)
+                localVelZ = -localVelZ * BOUNCE_DAMPING
 
-                    -- Snap to surface to prevent "stuck" crystals
-                    if localZ > 0 then localZ = halfThick else localZ = -halfThick end
+                -- Snap to surface to prevent "stuck" crystals
+                if localZ > 0 then localZ = halfThick else localZ = -halfThick end
 
-                    -- Transform Velocity & Position back to World Space
-                    Obj_VelX[i] = localVelX * math.cos(sAngle) - localVelZ * math.sin(sAngle)
-                    Obj_VelZ[i] = localVelX * math.sin(sAngle) + localVelZ * math.cos(sAngle)
+                -- Transform Velocity & Position back to World Space
+                Obj_VelX[i] = localVelX * math.cos(sAngle) - localVelZ * math.sin(sAngle)
+                Obj_VelZ[i] = localVelX * math.sin(sAngle) + localVelZ * math.cos(sAngle)
 
-                    Obj_X[i] = sx + (localX * math.cos(sAngle) - localZ * math.sin(sAngle))
-                    Obj_Z[i] = sz + (localX * math.sin(sAngle) + localZ * math.cos(sAngle))
-                end
+                Obj_X[i] = sx + (localX * math.cos(sAngle) - localZ * math.sin(sAngle))
+                Obj_Z[i] = sz + (localX * math.sin(sAngle) + localZ * math.cos(sAngle))
             end
-
-            -- BOUNDARY STEERING (Z-looping)
-            local totalLength = NumSlides * 3000
-            if Obj_Z[i] < -1000 then Obj_Z[i] = totalLength end
-            if Obj_Z[i] > totalLength then Obj_Z[i] = -1000 end
-
-            -- HELIX GRAVITY (Pull to center)
-            local distSq = Obj_X[i]^2 + Obj_Y[i]^2
-            if distSq > CORRIDOR_LIMIT^2 then
-                Obj_VelX[i] = Obj_VelX[i] - (Obj_X[i] * 0.01)
-                Obj_VelY[i] = Obj_VelY[i] - (Obj_Y[i] * 0.01)
-            end
-
-            -- CRYSTAL ROTATION
-            Obj_Yaw[i] = Obj_Yaw[i] + Obj_RotSpeedYaw[i] * dt
-            Obj_Pitch[i] = Obj_Pitch[i] + Obj_RotSpeedPitch[i] * dt
         end
+
+        -- BOUNDARY STEERING (Z-looping)
+        local totalLength = NumSlides * 3000
+        if Obj_Z[i] < -1000 then Obj_Z[i] = totalLength end
+        if Obj_Z[i] > totalLength then Obj_Z[i] = -1000 end
+
+        -- HELIX GRAVITY (Pull to center)
+        local distSq = Obj_X[i]^2 + Obj_Y[i]^2
+        if distSq > CORRIDOR_LIMIT^2 then
+            Obj_VelX[i] = Obj_VelX[i] - (Obj_X[i] * 0.01)
+            Obj_VelY[i] = Obj_VelY[i] - (Obj_Y[i] * 0.01)
+        end
+
+        -- CRYSTAL ROTATION
+        Obj_Yaw[i] = Obj_Yaw[i] + Obj_RotSpeedYaw[i] * dt
+        Obj_Pitch[i] = Obj_Pitch[i] + Obj_RotSpeedPitch[i] * dt
 
         -- 2. TRANSFORMATION LAYER (Calculates basis for both Crystals AND Slides)
         local cy, sy = math.cos(Obj_Yaw[i]), math.sin(Obj_Yaw[i])
@@ -420,7 +450,6 @@ local function GetViewDistance(w, h)
     local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
     return (distScale * Cam.fov) / CANVAS_H + 200
 end
-
 function love.load()
     local displayCount = love.window.getDisplayCount()
     local primaryIndex = 1 -- Fallback
@@ -459,47 +488,52 @@ function love.load()
 
     Cam.pos = {x=0, y=0, z=0}
 
-    -- Spawn 500 low-poly "Crystals"
+    -- 1. Create the 500 "Star" Objects (Background)
     local colors = {0xFFFFCC44, 0xFF44CCFF, 0xFFCC44FF, 0xFFFFFFFF}
     math.randomseed(os.time())
-
-    -- In main.lua -> love.load()
+    -- Inside your NEW love.load, replace the 500-star loop with this:
     for i = 1, 500 do
         local id = NumObjects
-        local chosenColor = colors[math.random(#colors)]
-        CreateTorus(0, 0, 0, 25, 10, 8, 3, chosenColor)
+        local col = colors[math.random(#colors)]
+        CreateTorus(0, 0, 0, 25, 10, 8, 3, col)
 
-        -- PEACEFUL FLOATING STATE (From Golden Update)
-        -- Randomly scatter them along the general spiral path corridor
         local angle = math.random() * math.pi * 2
-        local dist = 1200 + math.random(800)
+        local dist = 1200 + math.random(800) -- This distance creates the "Corridor" feel
+
         Obj_X[id] = math.cos(angle) * dist
         Obj_Y[id] = math.sin(angle) * dist
-        Obj_Z[id] = math.random(0, 12000) -- Scatter through the presentation depth
+        Obj_Z[id] = math.random(0, 12000)
 
-        -- Velocity-based movement
+        -- The Drift: High velocity variation
         Obj_VelX[id] = (math.random() - 0.5) * 80
         Obj_VelY[id] = (math.random() - 0.5) * 80
         Obj_VelZ[id] = (math.random() - 0.5) * 80
 
+        -- The Momentum: Crucial both Yaw AND Pitch rotation
         Obj_RotSpeedYaw[id] = (math.random() - 0.5) * 3
-        Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 3
+        Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 3 -- Restore this!
     end
-    -- Bundle a stripped-down API for slides.lua
+    -- 2. Define the slideAPI (Now with Torus support)
     local slideAPI = {
         CreateTriObject = CreateTriObject,
+        CreateTorus = CreateTorus,
         Obj_Yaw = Obj_Yaw,
+        Obj_Pitch = Obj_Pitch,
+        Obj_X = Obj_X, Obj_Y = Obj_Y, Obj_Z = Obj_Z,
+        Obj_VelX = Obj_VelX, Obj_VelY = Obj_VelY, Obj_VelZ = Obj_VelZ,
+        Obj_RotSpeedYaw = Obj_RotSpeedYaw,
+        Obj_RotSpeedPitch = Obj_RotSpeedPitch,
         Slide_X = Slide_X, Slide_Y = Slide_Y, Slide_Z = Slide_Z
     }
 
-    local manifest
-    NumSlides, manifest = SlidesInternal.build(slideAPI, NumSlides)
+    -- 3. Run the Slide Builder
+    -- Note: We pass 0 as startSlideCount so TargetSlide 0 is the first platform
+    NumSlides, manifest = SlidesInternal.build(slideAPI, 0)
 
-    -- Iterate through the layout manifest to calculate camera waypoints
+    -- 4. Calculate Camera Waypoints (Using the manifest we just got)
     for i, slide in ipairs(manifest) do
-        local sIdx = i - 1 -- Lua arrays are 1-based, our SoA buffers are 0-based
-        local dist = GetViewDistance(slide.w, slide.h)
-
+        local sIdx = i - 1
+        local dist = GetViewDistance(slide.w, slide.h) * 1.5
         local offsetX = math.sin(slide.angle) * dist
         local offsetZ = -math.cos(slide.angle) * dist
 
@@ -507,15 +541,13 @@ function love.load()
         Way_Y[sIdx] = slide.y
         Way_Z[sIdx] = slide.z + offsetZ
         Way_Yaw[sIdx] = math.atan2(-offsetX, -offsetZ)
-        Way_Pitch[sIdx] = 0
 
-        -- Lock the camera to the first slide on boot
+        -- Start the camera at slide 0
         if sIdx == 0 then
             Cam.pos.x, Cam.pos.y, Cam.pos.z = Way_X[0], Way_Y[0], Way_Z[0]
-            Cam.yaw, Cam.pitch = Way_Yaw[0], Way_Pitch[0]
+            Cam.yaw = Way_Yaw[0]
         end
     end
-
     updateTargetSide()
 end
 
