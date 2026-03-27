@@ -544,7 +544,6 @@ function love.draw()
     local crt_x, crt_y, crt_z = Cam.rt.x, Cam.rt.y, Cam.rt.z
     local cup_x, cup_y, cup_z = Cam.up.x, Cam.up.y, Cam.up.z
     local cfov = Cam.fov
-    local objectsDrawn = 0
     for _, obj in ipairs(TriObjects) do
         local id = obj.id
         local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
@@ -557,7 +556,6 @@ function love.draw()
             local boundX = (HALF_W * depth / cfov) + radius
             local boundY = (HALF_H * depth / cfov) + radius
             if abs(cx_center) <= boundX and abs(cy_center) <= boundY then
-                objectsDrawn = objectsDrawn + 1
                 local rx, ry, rz = Obj_RTX[id], 0, Obj_RTZ[id]
                 local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
                 local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
