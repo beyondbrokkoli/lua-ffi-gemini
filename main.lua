@@ -18,7 +18,6 @@ local MAX_OBJS = 2048
 local Crystal_HomeIdx = ffi.new("int[?]", MAX_OBJS)
 local Is_Crystal = ffi.new("bool[?]", MAX_OBJS)
 
--- Localized for performance
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local sqrt, cos, sin = math.sqrt, math.cos, math.sin
 
@@ -330,7 +329,7 @@ local function BatchUpdateTransforms(dt)
         if Is_Crystal[i] then
             local s = manifest[Crystal_HomeIdx[i]]
             local dx, dy, dz = s.x - Obj_X[i], s.y - Obj_Y[i], s.z - Obj_Z[i]
-            
+
             -- Attraction (The "Hurrying" Logic)
             local threshold = (s.w * 0.8) ^ 2
             if dx*dx + dy*dy + dz*dz > threshold then
@@ -353,16 +352,17 @@ local function BatchUpdateTransforms(dt)
 
                 -- V_new = V - 2 * (V dot N) * N
                 local dot = Obj_VelX[i] * hitNormalX + Obj_VelZ[i] * hitNormalZ
-                
+
                 if dot < 0 then
                     -- Reflect with energetic bounce (0.7 bounciness)
-                    Obj_VelX[i] = (Obj_VelX[i] - 2 * dot * hitNormalX) * 0.7
-                    Obj_VelZ[i] = (Obj_VelZ[i] - 2 * dot * hitNormalZ) * 0.7
-                    
-                    -- COUNTER-ROTATION + Random Chaos
-                    Obj_RotSpeedYaw[i] = -Obj_RotSpeedYaw[i] * 1.2 + (math.random() - 0.5) * 15
-                    Obj_RotSpeedPitch[i] = Obj_RotSpeedPitch[i] + (math.random() - 0.5) * 10
-                    
+                    Obj_VelX[i] = (Obj_VelX[i] - 2 * dot * hitNormalX) * 0.5
+                    Obj_VelZ[i] = (Obj_VelZ[i] - 2 * dot * hitNormalZ) * 0.5
+
+                    -- Apply a dampening/clamping to the new rotation
+                    local maxRot = 25 -- Maximum radians per second
+                    Obj_RotSpeedYaw[i] = max(-maxRot, min(maxRot, -Obj_RotSpeedYaw[i] * 1.1 + (math.random() - 0.5) * 15))
+                    Obj_RotSpeedPitch[i] = max(-maxRot, min(maxRot, Obj_RotSpeedPitch[i] + (math.random() - 0.5) * 10))
+
                     Obj_VelY[i] = Obj_VelY[i] * 0.9 -- Surface friction
                 end
 
@@ -373,7 +373,9 @@ local function BatchUpdateTransforms(dt)
                 Obj_Z[i] = Obj_Z[i] + nz * pushDir * separation
             end
         end
-
+        -- (Optional) Add this outside the collision check to make spin decay over time:
+        Obj_RotSpeedYaw[i] = Obj_RotSpeedYaw[i] * 0.995
+        Obj_RotSpeedPitch[i] = Obj_RotSpeedPitch[i] * 0.995
         -- Update basis vectors
         local cy, sy = cos(Obj_Yaw[i]), sin(Obj_Yaw[i])
         local cp, sp = cos(Obj_Pitch[i]), sin(Obj_Pitch[i])
@@ -456,7 +458,7 @@ function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
 end
 
 function love.load()
-    love.window.setMode(800, 800, { fullscreen = true, vsync = 1 })
+    love.window.setMode(800, 800, { fullscreen = true, vsync = 1, resizable = true })
     local windowW, windowH = love.graphics.getDimensions()
     ReinitBuffers(windowW, windowH)
     love.mouse.setRelativeMode(isMouseCaptured)
@@ -485,9 +487,9 @@ end
 function love.update(dt)
     if pendingResize then
         resizeTimer = resizeTimer - dt
-        if resizeTimer <= 0 then 
+        if resizeTimer <= 0 then
             ReinitBuffers(love.graphics.getWidth(), love.graphics.getHeight())
-            pendingResize = false; ReinitFontCache() 
+            pendingResize = false; ReinitFontCache()
         end
         return
     end
@@ -527,8 +529,8 @@ function love.update(dt)
     end
     UpdateCameraBasis(Cam)
     BatchUpdateTransforms(dt)
-    local min_dt = 1 / 90
-    if dt < min_dt then love.timer.sleep(min_dt - dt) end
+    -- local min_dt = 1 / 90
+    -- if dt < min_dt then love.timer.sleep(min_dt - dt) end
 end
 
 function love.draw()
