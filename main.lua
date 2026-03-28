@@ -13,6 +13,7 @@ typedef struct { Vec3 pos; Vec3 fw, rt, up; float yaw, pitch, fov; } Entity;
 typedef struct { int v1, v2, v3; uint32_t color; } Triangle;
 typedef struct { float x, y, z, rSq; } SlideSphere;
 typedef struct { float minX, minY, minZ, maxX, maxY, maxZ; } AABB;
+typedef struct { float x, y, z; float hw, hh, ht; float cosA, sinA; float nx, nz; } SlideBox;
 ]]
 
 local MAX_SLIDES = 100
@@ -27,6 +28,28 @@ local SlidesInternal = {
     build = function(api, startSlideCount)
         local NumSlides = startSlideCount
         local manifest = {}
+        local function RegisterSlide(sIdx, x, y, z, w, h, angle)
+            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
+
+            -- 1. Setup the OBB (Box) for local collision
+            local b = api.SlideBoxes[sIdx]
+            b.x, b.y, b.z = x, y, z
+            b.hw, b.hh = w * 0.5, h * 0.5
+            b.ht = 120
+            b.cosA, b.sinA = math.cos(angle), math.sin(angle)
+            b.nx, b.nz = math.sin(angle), math.cos(angle)
+
+            -- 2. Setup the Containment Sphere (Crucial for Crystal spatial separation!)
+            local sSp = api.SlideSpheres[sIdx]
+            local pad = 1000
+            local halfDiag = math.sqrt((b.hw)^2 + (b.hh)^2)
+            local totalRadius = halfDiag + pad
+            sSp.x, sSp.y, sSp.z = x, y, z
+            sSp.rSq = totalRadius * totalRadius
+
+            manifest[sIdx] = { w = w, h = h, angle = angle, x = x, y = y, z = z }
+        end
+
         local function BuildHalf(w, h, thickness, color, offX, offY)
             local slide = api.CreateTriObject(0, 0, 0, 8, 12, max(w, h))
             local hw, hh, ht = w/2, h/2, thickness/2
@@ -40,17 +63,6 @@ local SlidesInternal = {
             local indices = { 0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7 }
             for i=0, 11 do slide.tris[i] = {v1=indices[i*3+1], v2=indices[i*3+2], v3=indices[i*3+3], color=color} end
             return slide
-        end
-
-        local function RegisterSlide(sIdx, x, y, z, w, h, angle)
-            api.Slide_X[sIdx], api.Slide_Y[sIdx], api.Slide_Z[sIdx] = x, y, z
-            manifest[sIdx] = {
-                x = x, y = y, z = z,
-                w = w, h = h,
-                angle = angle,
-                nx = math.sin(angle),
-                nz = math.cos(angle)
-            }
         end
 
         local function CreateAutoSlide(w, h, thickness, color)
@@ -101,37 +113,51 @@ local SlidesInternal = {
         CreateAutoSlideHorizontalSplit(1600, 900, 20, 0xFF44CCFF, 0xFFCC44FF)
         CreateAutoSlideQuad(1800, 1000, 60, 0xFF2E8B57, 0xFF8B0000, 0xFFDAA520, 0xFFFFFFFF)
         CreateAutoSlide(3200, 1800, 10, 0xFFFFFFFF)
+
         return NumSlides, manifest
     end
 }
 
+-- Replace the logic inside SlidesInternal.CrystalCompanion
 SlidesInternal.CrystalCompanion = function(api, manifest, numSlides, crystalsPerSlide)
     local colors = {0xFFFFCC44, 0xFF44CCFF, 0xFFCC44FF, 0xFFFFFFFF}
     for i = 0, numSlides - 1 do
-        local s = manifest[i]
-        local rightX, rightZ = s.nz, -s.nx
-        local fwdX, fwdZ = s.nx, s.nz
+        local sSp = api.SlideSpheres[i] -- Read directly from FFI
+        local radius = math.sqrt(sSp.rSq)
+
         for j = 1, crystalsPerSlide do
-            local localX = (math.random() - 0.5) * (s.w * 1.5)
-            local localY = (math.random() - 0.5) * (s.h * 1.5)
-            local side = math.random() > 0.5 and 1 or -1
-            local spawnPadding = 300
-            local localZ = side * (spawnPadding + math.random() * 400)
-            local x = s.x + (rightX * localX) + (fwdX * localZ)
-            local y = s.y + localY
-            local z = s.z + (rightZ * localX) + (fwdZ * localZ)
+            -- Spawn logic using the pre-calculated radius
+            local phi = math.random() * math.pi * 2
+            local costheta = (math.random() * 2) - 1
+            local theta = math.acos(costheta)
+            -- Use 40% to 90% of the calculated radius for spawn volume
+            local r = (radius * 0.4) + (math.random() * radius * 0.5)
+
+            local lx = r * math.sin(theta) * math.cos(phi)
+            local ly = r * math.sin(theta) * math.sin(phi)
+            local lz = r * math.cos(theta)
+
             local id = api.NumObjects()
-            local chosenColor = colors[math.random(#colors)]
-            api.CreateTorus(x, y, z, 25, 10, 8, 3, chosenColor)
-            Is_Crystal[id] = true
-            Crystal_HomeIdx[id] = i
+            -- [Rest of the torus creation and velocity assignment remains the same]
+            api.CreateTorus(sSp.x + lx, sSp.y + ly, sSp.z + lz, 20, 8, 8, 3, colors[math.random(#colors)])
+            -- ... populate Is_Crystal, Crystal_HomeIdx, Vel, etc. ...
+            -- 4. Set Divine Metadata
+            api.Is_Crystal[id] = true
+            api.Crystal_HomeIdx[id] = i
+
+            -- 5. Seed the Kinetic Momentum (Peaceful Expansion)
+            -- Low initial velocity for a "Drifting Nebula" effect
+            api.Obj_VelX[id] = (math.random() - 0.5) * 40
+            api.Obj_VelY[id] = (math.random() - 0.5) * 40
+            api.Obj_VelZ[id] = (math.random() - 0.5) * 40
+
+            -- High rotational drift for visual shimmering
+            api.Obj_RotSpeedYaw[id] = (math.random() - 0.5) * 3
+            api.Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 3
+
+            -- Randomize initial orientation
             api.Obj_Yaw[id] = math.random() * math.pi * 2
             api.Obj_Pitch[id] = math.random() * math.pi * 2
-            api.Obj_VelX[id] = (math.random() - 0.5) * 60
-            api.Obj_VelY[id] = (math.random() - 0.5) * 60
-            api.Obj_VelZ[id] = (math.random() - 0.5) * 60
-            api.Obj_RotSpeedYaw[id] = (math.random() - 0.5) * 5
-            api.Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 5
         end
     end
 end
@@ -158,6 +184,7 @@ local Obj_RotSpeedYaw, Obj_RotSpeedPitch = ffi.new("float[?]", MAX_OBJS), ffi.ne
 -- The Global Cages
 local SlideSpheres = ffi.new("SlideSphere[?]", MAX_SLIDES)
 local Bounds = ffi.new("AABB", {-8000, -4000, -2000, 8000, 4000, 15000}) -- Adjust dimensions to your overarching world
+local SlideBoxes = ffi.new("SlideBox[?]", MAX_SLIDES)
 
 local TargetSlide, NumSlides = 0, 0
 local presentationMode = true
@@ -258,15 +285,21 @@ local function GetViewDistance(w, h)
     local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
     return (distScale * Cam.fov) / CANVAS_H + 200
 end
-
 local function updateTargetSide()
     local s = manifest[TargetSlide]
     if not s then return end
+
+    -- READ FROM FFI: The normal is now stored in the Box
+    local b = SlideBoxes[TargetSlide]
+    local nx, nz = b.nx, b.nz
+
     local dist = GetViewDistance(s.w, s.h) * 1.5
-    local fx, fy, fz = s.x + s.nx * dist, s.y, s.z + s.nz * dist
-    local bx, by, bz = s.x - s.nx * dist, s.y, s.z - s.nz * dist
+    local fx, fy, fz = s.x + nx * dist, s.y, s.z + nz * dist
+    local bx, by, bz = s.x - nx * dist, s.y, s.z - nz * dist
+
     local dF = (fx - Cam.pos.x)^2 + (fy - Cam.pos.y)^2 + (fz - Cam.pos.z)^2
     local dB = (bx - Cam.pos.x)^2 + (by - Cam.pos.y)^2 + (bz - Cam.pos.z)^2
+
     if dF <= dB then
         tX, tY, tZ = fx, fy, fz
         tYaw = math.atan2(s.x - fx, s.z - fz)
@@ -324,20 +357,17 @@ local function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides, 
 end
 local function BatchUpdateTransforms(dt)
     for i = 0, NumObjects - 1 do
-        -- 1. Apply Kinetic Translation
+        -- 1. Euler Integration
         Obj_X[i] = Obj_X[i] + Obj_VelX[i] * dt
         Obj_Y[i] = Obj_Y[i] + Obj_VelY[i] * dt
         Obj_Z[i] = Obj_Z[i] + Obj_VelZ[i] * dt
-
-        -- 2. Apply Rotational Momentum
         Obj_Yaw[i] = Obj_Yaw[i] + Obj_RotSpeedYaw[i] * dt
         Obj_Pitch[i] = Obj_Pitch[i] + Obj_RotSpeedPitch[i] * dt
 
-        -- 3. Divine Containment (Crystals Only)
         if Is_Crystal[i] then
             local px, py, pz = Obj_X[i], Obj_Y[i], Obj_Z[i]
 
-            -- Global AABB Boundary (The Outer Void)
+            -- 2. World AABB Bounds (Hard Clamp)
             if px < Bounds.minX then Obj_X[i] = Bounds.minX; Obj_VelX[i] = abs(Obj_VelX[i]) end
             if px > Bounds.maxX then Obj_X[i] = Bounds.maxX; Obj_VelX[i] = -abs(Obj_VelX[i]) end
             if py < Bounds.minY then Obj_Y[i] = Bounds.minY; Obj_VelY[i] = abs(Obj_VelY[i]) end
@@ -345,52 +375,73 @@ local function BatchUpdateTransforms(dt)
             if pz < Bounds.minZ then Obj_Z[i] = Bounds.minZ; Obj_VelZ[i] = abs(Obj_VelZ[i]) end
             if pz > Bounds.maxZ then Obj_Z[i] = Bounds.maxZ; Obj_VelZ[i] = -abs(Obj_VelZ[i]) end
 
-            -- Slide Sphere Containment (The Inward Pull)
+            -- Update locals after world clamp
+            px, py, pz = Obj_X[i], Obj_Y[i], Obj_Z[i]
             local homeIdx = Crystal_HomeIdx[i]
-            local cx, cy, cz = SlideSpheres[homeIdx].x, SlideSpheres[homeIdx].y, SlideSpheres[homeIdx].z
-            local dx, dy, dz = px - cx, py - cy, pz - cz
-            local distSq = dx*dx + dy*dy + dz*dz
-            local rSq = SlideSpheres[homeIdx].rSq
 
-            -- If the crystal escapes its slide's orbit, reflect it inward
-            if distSq > rSq then
+            -- 3. Spherical Containment (The Home Sphere)
+            local sSp = SlideSpheres[homeIdx]
+            local sdx, sdy, sdz = px - sSp.x, py - sSp.y, pz - sSp.z
+            local distSq = sdx*sdx + sdy*sdy + sdz*sdz
+
+            if distSq > sSp.rSq then
                 local dist = sqrt(distSq)
-                local nx, ny, nz = dx/dist, dy/dist, dz/dist -- Normal pointing OUTWARD
-
-                local dot = Obj_VelX[i]*nx + Obj_VelY[i]*ny + Obj_VelZ[i]*nz
-
-                -- Only bounce if moving outward away from the center
+                local snx, sny, snz = sdx/dist, sdy/dist, sdz/dist
+                local dot = Obj_VelX[i]*snx + Obj_VelY[i]*sny + Obj_VelZ[i]*snz
                 if dot > 0 then
                     local bounce = 0.8
-                    Obj_VelX[i] = (Obj_VelX[i] - 2 * dot * nx) * bounce
-                    Obj_VelY[i] = (Obj_VelY[i] - 2 * dot * ny) * bounce
-                    Obj_VelZ[i] = (Obj_VelZ[i] - 2 * dot * nz) * bounce
+                    Obj_VelX[i] = (Obj_VelX[i] - 2 * dot * snx) * bounce
+                    Obj_VelY[i] = (Obj_VelY[i] - 2 * dot * sny) * bounce
+                    Obj_VelZ[i] = (Obj_VelZ[i] - 2 * dot * snz) * bounce
 
-                    -- Inject chaotic spin upon striking the boundary
                     local maxRot = 25
                     Obj_RotSpeedYaw[i] = max(-maxRot, min(maxRot, -Obj_RotSpeedYaw[i] * 1.1 + (math.random() - 0.5) * 15))
                     Obj_RotSpeedPitch[i] = max(-maxRot, min(maxRot, Obj_RotSpeedPitch[i] + (math.random() - 0.5) * 10))
                 end
-
-                -- Resolve penetration to keep them strictly inside the sphere
-                local radius = sqrt(rSq)
+                local radius = sqrt(sSp.rSq)
                 local pen = dist - radius + 2
-                Obj_X[i] = Obj_X[i] - nx * pen
-                Obj_Y[i] = Obj_Y[i] - ny * pen
-                Obj_Z[i] = Obj_Z[i] - nz * pen
+                Obj_X[i] = Obj_X[i] - snx * pen
+                Obj_Y[i] = Obj_Y[i] - sny * pen
+                Obj_Z[i] = Obj_Z[i] - snz * pen
+                -- Refresh locals for next check
+                px, py, pz = Obj_X[i], Obj_Y[i], Obj_Z[i]
+            end
+
+            -- 4. OBB Slide Exclusion (The Solid Surface)
+            local b = SlideBoxes[homeIdx]
+            local dx, dy, dz = px - b.x, py - b.y, pz - b.z
+
+            -- Transform to Local Slide Space
+            local localX = dx * b.nz - dz * (-b.nx)
+            local localZ = dx * (-b.nx) + dz * b.nz
+            local pad = 35
+
+            if abs(localX) < b.hw + pad and abs(dy) < b.hh + pad and abs(localZ) < b.ht + pad then
+                local sign = localZ > 0 and 1 or -1
+                localZ = (b.ht + pad + 5) * sign
+
+                -- Restore to World Space
+                Obj_X[i] = b.x + (localX * b.nz + localZ * (-b.nx))
+                Obj_Z[i] = b.z + (-localX * (-b.nx) + localZ * b.nz)
+                Obj_Y[i] = b.y + dy
+
+                -- Kinetic Reflection against Slide Normal
+                local vDotN = Obj_VelX[i] * b.nx + Obj_VelZ[i] * b.nz
+                local bounce = 0.65
+                Obj_VelX[i] = (Obj_VelX[i] - 2 * vDotN * b.nx) * bounce
+                Obj_VelZ[i] = (Obj_VelZ[i] - 2 * vDotN * b.nz) * bounce
+
+                Obj_RotSpeedYaw[i] = Obj_RotSpeedYaw[i] * -1.2
             end
         end
 
-        -- 4. Matrix Math (The World Frame Integration)
+        -- 5. Basis Vector Update for Rendering
         local cy, sy = cos(Obj_Yaw[i]), sin(Obj_Yaw[i])
         local cp, sp = cos(Obj_Pitch[i]), sin(Obj_Pitch[i])
-
         local fwx, fwy, fwz = sy * cp, sp, cy * cp
         local rtx, rtz = cy, -sy
-
         Obj_FWX[i], Obj_FWY[i], Obj_FWZ[i] = fwx, fwy, fwz
         Obj_RTX[i], Obj_RTZ[i] = rtx, rtz
-
         Obj_UPX[i] = fwy * rtz
         Obj_UPY[i] = fwz * rtx - fwx * rtz
         Obj_UPZ[i] = -fwy * rtx
@@ -480,27 +531,13 @@ function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
         end
     end
 end
--- Execute this once during love.load or at the end of SlidesInternal.build
-local function InitializeExclusionZones(manifest, numSlides)
-    local pad = 1000
-    for sIdx = 0, numSlides - 1 do
-        local s = manifest[sIdx]
 
-        -- The radius encompasses the slide's diagonal plus the benevolent buffer
-        local halfDiag = sqrt((s.w * 0.5)^2 + (s.h * 0.5)^2)
-        local totalRadius = halfDiag + pad
-
-        SlideSpheres[sIdx].x = s.x
-        SlideSpheres[sIdx].y = s.y
-        SlideSpheres[sIdx].z = s.z
-        SlideSpheres[sIdx].rSq = totalRadius * totalRadius
-    end
-end
 function love.load()
     love.window.setMode(800, 800, { fullscreen = true, vsync = 1, resizable = true })
     local windowW, windowH = love.graphics.getDimensions()
     ReinitBuffers(windowW, windowH)
     love.mouse.setRelativeMode(isMouseCaptured)
+
     local slideAPI = {
         CreateTriObject = CreateTriObject,
         CreateTorus = CreateTorus,
@@ -509,12 +546,18 @@ function love.load()
         Obj_VelX = Obj_VelX, Obj_VelY = Obj_VelY, Obj_VelZ = Obj_VelZ,
         Obj_RotSpeedYaw = Obj_RotSpeedYaw, Obj_RotSpeedPitch = Obj_RotSpeedPitch,
         Slide_X = Slide_X, Slide_Y = Slide_Y, Slide_Z = Slide_Z,
+        SlideBoxes = SlideBoxes,
+        SlideSpheres = SlideSpheres,
         Is_Crystal = Is_Crystal, Crystal_HomeIdx = Crystal_HomeIdx,
         NumObjects = function() return NumObjects end
     }
+
+    -- 1. Build creates Geometry, OBB Boxes, and Containment Spheres in one pass
     NumSlides, manifest = SlidesInternal.build(slideAPI, 0)
+
+    -- 2. Populate crystals using the already-calculated FFI sphere data
     SlidesInternal.CrystalCompanion(slideAPI, manifest, NumSlides, 50)
-    InitializeExclusionZones(manifest, NumSlides)
+
     updateTargetSide()
     Cam.pos.x, Cam.pos.y, Cam.pos.z = tX, tY, tZ
     Cam.yaw, Cam.pitch = tYaw, tPitch
