@@ -11,6 +11,8 @@ ffi.cdef[[
 typedef struct { float x, y, z; } Vec3;
 typedef struct { Vec3 pos; Vec3 fw, rt, up; float yaw, pitch, fov; } Entity;
 typedef struct { int v1, v2, v3; uint32_t color; } Triangle;
+typedef struct { float x, y, z, rSq; } SlideSphere;
+typedef struct { float minX, minY, minZ, maxX, maxY, maxZ; } AABB;
 ]]
 
 local MAX_SLIDES = 100
@@ -152,6 +154,10 @@ local Obj_UPX, Obj_UPY, Obj_UPZ = ffi.new("float[?]", MAX_OBJS), ffi.new("float[
 local NumObjects = 0
 local Obj_VelX, Obj_VelY, Obj_VelZ = ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS)
 local Obj_RotSpeedYaw, Obj_RotSpeedPitch = ffi.new("float[?]", MAX_OBJS), ffi.new("float[?]", MAX_OBJS)
+
+-- The Global Cages
+local SlideSpheres = ffi.new("SlideSphere[?]", MAX_SLIDES)
+local Bounds = ffi.new("AABB", {-8000, -4000, -2000, 8000, 4000, 15000}) -- Adjust dimensions to your overarching world
 
 local TargetSlide, NumSlides = 0, 0
 local presentationMode = true
@@ -316,73 +322,75 @@ local function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides, 
     end
     return tor
 end
-
 local function BatchUpdateTransforms(dt)
     for i = 0, NumObjects - 1 do
-        -- Base movement
+        -- 1. Apply Kinetic Translation
         Obj_X[i] = Obj_X[i] + Obj_VelX[i] * dt
         Obj_Y[i] = Obj_Y[i] + Obj_VelY[i] * dt
         Obj_Z[i] = Obj_Z[i] + Obj_VelZ[i] * dt
+
+        -- 2. Apply Rotational Momentum
         Obj_Yaw[i] = Obj_Yaw[i] + Obj_RotSpeedYaw[i] * dt
         Obj_Pitch[i] = Obj_Pitch[i] + Obj_RotSpeedPitch[i] * dt
 
+        -- 3. Divine Containment (Crystals Only)
         if Is_Crystal[i] then
-            local s = manifest[Crystal_HomeIdx[i]]
-            local dx, dy, dz = s.x - Obj_X[i], s.y - Obj_Y[i], s.z - Obj_Z[i]
+            local px, py, pz = Obj_X[i], Obj_Y[i], Obj_Z[i]
 
-            -- Attraction (The "Hurrying" Logic)
-            local threshold = (s.w * 0.8) ^ 2
-            if dx*dx + dy*dy + dz*dz > threshold then
-                Obj_VelX[i] = Obj_VelX[i] + dx * dt * 0.5
-                Obj_VelY[i] = Obj_VelY[i] + dy * dt * 0.5
-                Obj_VelZ[i] = Obj_VelZ[i] + dz * dt * 0.5
-            end
+            -- Global AABB Boundary (The Outer Void)
+            if px < Bounds.minX then Obj_X[i] = Bounds.minX; Obj_VelX[i] = abs(Obj_VelX[i]) end
+            if px > Bounds.maxX then Obj_X[i] = Bounds.maxX; Obj_VelX[i] = -abs(Obj_VelX[i]) end
+            if py < Bounds.minY then Obj_Y[i] = Bounds.minY; Obj_VelY[i] = abs(Obj_VelY[i]) end
+            if py > Bounds.maxY then Obj_Y[i] = Bounds.maxY; Obj_VelY[i] = -abs(Obj_VelY[i]) end
+            if pz < Bounds.minZ then Obj_Z[i] = Bounds.minZ; Obj_VelZ[i] = abs(Obj_VelZ[i]) end
+            if pz > Bounds.maxZ then Obj_Z[i] = Bounds.maxZ; Obj_VelZ[i] = -abs(Obj_VelZ[i]) end
 
-            -- Collision Check
-            local nx, nz = s.nx, s.nz
-            local rx, rz = s.nz, -s.nx
-            local localZ = -dx * nx - dz * nz
-            local localX = -dx * rx - dz * rz
-            local localY = -dy
-            local boxW, boxH, boxD = s.w * 0.55, s.h * 0.55, 150
+            -- Slide Sphere Containment (The Inward Pull)
+            local homeIdx = Crystal_HomeIdx[i]
+            local cx, cy, cz = SlideSpheres[homeIdx].x, SlideSpheres[homeIdx].y, SlideSpheres[homeIdx].z
+            local dx, dy, dz = px - cx, py - cy, pz - cz
+            local distSq = dx*dx + dy*dy + dz*dz
+            local rSq = SlideSpheres[homeIdx].rSq
 
-            if abs(localX) < boxW and abs(localY) < boxH and abs(localZ) < boxD then
-                local hitNormalX = (localZ > 0) and nx or -nx
-                local hitNormalZ = (localZ > 0) and nz or -nz
+            -- If the crystal escapes its slide's orbit, reflect it inward
+            if distSq > rSq then
+                local dist = sqrt(distSq)
+                local nx, ny, nz = dx/dist, dy/dist, dz/dist -- Normal pointing OUTWARD
 
-                -- V_new = V - 2 * (V dot N) * N
-                local dot = Obj_VelX[i] * hitNormalX + Obj_VelZ[i] * hitNormalZ
+                local dot = Obj_VelX[i]*nx + Obj_VelY[i]*ny + Obj_VelZ[i]*nz
 
-                if dot < 0 then
-                    -- Reflect with energetic bounce (0.7 bounciness)
-                    Obj_VelX[i] = (Obj_VelX[i] - 2 * dot * hitNormalX) * 0.5
-                    Obj_VelZ[i] = (Obj_VelZ[i] - 2 * dot * hitNormalZ) * 0.5
+                -- Only bounce if moving outward away from the center
+                if dot > 0 then
+                    local bounce = 0.8
+                    Obj_VelX[i] = (Obj_VelX[i] - 2 * dot * nx) * bounce
+                    Obj_VelY[i] = (Obj_VelY[i] - 2 * dot * ny) * bounce
+                    Obj_VelZ[i] = (Obj_VelZ[i] - 2 * dot * nz) * bounce
 
-                    -- Apply a dampening/clamping to the new rotation
-                    local maxRot = 25 -- Maximum radians per second
+                    -- Inject chaotic spin upon striking the boundary
+                    local maxRot = 25
                     Obj_RotSpeedYaw[i] = max(-maxRot, min(maxRot, -Obj_RotSpeedYaw[i] * 1.1 + (math.random() - 0.5) * 15))
                     Obj_RotSpeedPitch[i] = max(-maxRot, min(maxRot, Obj_RotSpeedPitch[i] + (math.random() - 0.5) * 10))
-
-                    Obj_VelY[i] = Obj_VelY[i] * 0.9 -- Surface friction
                 end
 
-                -- Separation Push (Anti-Stuck)
-                local separation = (boxD - abs(localZ)) + 5
-                local pushDir = (localZ > 0) and 1 or -1
-                Obj_X[i] = Obj_X[i] + nx * pushDir * separation
-                Obj_Z[i] = Obj_Z[i] + nz * pushDir * separation
+                -- Resolve penetration to keep them strictly inside the sphere
+                local radius = sqrt(rSq)
+                local pen = dist - radius + 2
+                Obj_X[i] = Obj_X[i] - nx * pen
+                Obj_Y[i] = Obj_Y[i] - ny * pen
+                Obj_Z[i] = Obj_Z[i] - nz * pen
             end
         end
-        -- (Optional) Add this outside the collision check to make spin decay over time:
-        Obj_RotSpeedYaw[i] = Obj_RotSpeedYaw[i] * 0.995
-        Obj_RotSpeedPitch[i] = Obj_RotSpeedPitch[i] * 0.995
-        -- Update basis vectors
+
+        -- 4. Matrix Math (The World Frame Integration)
         local cy, sy = cos(Obj_Yaw[i]), sin(Obj_Yaw[i])
         local cp, sp = cos(Obj_Pitch[i]), sin(Obj_Pitch[i])
+
         local fwx, fwy, fwz = sy * cp, sp, cy * cp
         local rtx, rtz = cy, -sy
+
         Obj_FWX[i], Obj_FWY[i], Obj_FWZ[i] = fwx, fwy, fwz
         Obj_RTX[i], Obj_RTZ[i] = rtx, rtz
+
         Obj_UPX[i] = fwy * rtz
         Obj_UPY[i] = fwz * rtx - fwx * rtz
         Obj_UPZ[i] = -fwy * rtx
@@ -472,7 +480,22 @@ function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
         end
     end
 end
+-- Execute this once during love.load or at the end of SlidesInternal.build
+local function InitializeExclusionZones(manifest, numSlides)
+    local pad = 1000
+    for sIdx = 0, numSlides - 1 do
+        local s = manifest[sIdx]
 
+        -- The radius encompasses the slide's diagonal plus the benevolent buffer
+        local halfDiag = sqrt((s.w * 0.5)^2 + (s.h * 0.5)^2)
+        local totalRadius = halfDiag + pad
+
+        SlideSpheres[sIdx].x = s.x
+        SlideSpheres[sIdx].y = s.y
+        SlideSpheres[sIdx].z = s.z
+        SlideSpheres[sIdx].rSq = totalRadius * totalRadius
+    end
+end
 function love.load()
     love.window.setMode(800, 800, { fullscreen = true, vsync = 1, resizable = true })
     local windowW, windowH = love.graphics.getDimensions()
@@ -491,6 +514,7 @@ function love.load()
     }
     NumSlides, manifest = SlidesInternal.build(slideAPI, 0)
     SlidesInternal.CrystalCompanion(slideAPI, manifest, NumSlides, 50)
+    InitializeExclusionZones(manifest, NumSlides)
     updateTargetSide()
     Cam.pos.x, Cam.pos.y, Cam.pos.z = tX, tY, tZ
     Cam.yaw, Cam.pitch = tYaw, tPitch
