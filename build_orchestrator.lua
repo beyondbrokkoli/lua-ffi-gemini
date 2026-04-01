@@ -49,31 +49,6 @@ return true
 end
 return false
 end
-local function OLD_strip_to_target(input_path, output_path)
-local infile = io.open(input_path, "r")
-if not infile then return false end
-local lines = {}
-local d = "\45\45"
-for line in infile:lines() do
-local s = line:find(d)
-local clean_line = line
-if s then
-clean_line = line:sub(1, s - 1)
-end
-clean_line = clean_line:match("^%s*(.-)%s*$")
-if clean_line ~= "" then
-table.insert(lines, clean_line)
-end
-end
-infile:close()
-local outfile = io.open(output_path, "w")
-if outfile then
-outfile:write(table.concat(lines, "\n") .. "\n")
-outfile:close()
-return true
-end
-return false
-end
 local function copy_file(src, dest)
 local f_in = io.open(src, "rb")
 if not f_in then return false end
