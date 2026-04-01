@@ -19,8 +19,5 @@ and flat shading, writing directly to a
 32-bit screen pointer.  
 
 Manages 500+ dynamic entities with  
-Local-Space Collision and  
-Helix Steering gravity.  
-
-Locked 90 FPS in  
+Local-Space Collision in  
 exclusive fullscreen.  
