@@ -1,0 +1,152 @@
+[
+  {
+    "x": 0, "y": 0, "z": -30000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4282703103,
+    "text": "WELCOME, USER.",
+    "content": [
+      "# Initializing... ULTIMA PLATIN Engine",
+      "",
+      "Experience pure LuaJIT horsepower.",
+      "A custom 3D software rasterizer,",
+      "built entirely from scratch on the CPU.",
+      "",
+      "Zero GPU acceleration. Just raw math."
+    ]
+  },
+  {
+    "x": 250, "y": 50, "z": -33000,
+    "w": 1600, "h": 900, "yaw": 0.3, "thickness": 40, "color": 4294959000,
+    "text": "SYSTEM CONTROLS",
+    "content": [
+      "# Navigation | # Simulation",
+      "WASD/QE - Move Camera | C - Chaos Field",
+      "Arrows - Pitch & Yaw | V - Vortex Spin",
+      "J - Toggle Mouse Lock | G - Gravity Well",
+      "",
+      "# Presentation Mode | # Core Engine",
+      "Space - Next Slide | Esc - Quick Quit",
+      "Backspace - Prev Slide | ",
+      "I / U - Exit Presenter | "
+    ]
+  },
+  {
+    "x": -250, "y": -50, "z": -36000,
+    "w": 1600, "h": 900, "yaw": -0.3, "thickness": 40, "color": 4294959200,
+    "text": "DATA ORIENTED DESIGN",
+    "content": [
+      "# Array of Structures | # Structure of Arrays",
+      "Messy Lua Tables | Contiguous C-Memory",
+      "Pointer Chasing | Linear Access",
+      "Frequent Cache Misses | Optimal Cache Locality",
+      "Slower Execution | Blistering Speed"
+    ]
+  },
+  {
+    "x": 0, "y": 150, "z": -39000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294959400,
+    "text": "PHASE 1: BOOT",
+    "content": [
+      "# sys_memory.lua",
+      "",
+      "Raw C-Structs are allocated via FFI.",
+      "The MAX_OBJS buffer is initialized.",
+      "Data layout is finalized in system RAM."
+    ]
+  },
+  {
+    "x": 150, "y": -200, "z": -42000,
+    "w": 1600, "h": 900, "yaw": 0.2, "thickness": 40, "color": 4294959600,
+    "text": "PHASE 2: SCENE SYNC",
+    "content": [
+      "# engine.lua",
+      "",
+      "Reads and parses the JSON payload.",
+      "Builds the 3D bounding box constraints.",
+      "Calculates optimal pixel projection scales."
+    ]
+  },
+  {
+    "x": -150, "y": 100, "z": -45000,
+    "w": 1600, "h": 900, "yaw": -0.2, "thickness": 40, "color": 4294959800,
+    "text": "PHASE 3: GEOMETRY",
+    "content": [
+      "# slides_internal.lua",
+      "",
+      "Generates thousands of raw vertices.",
+      "Pushes math directly into Local X/Y/Z buffers.",
+      "Bakes unindexed triangles into memory."
+    ]
+  },
+  {
+    "x": 0, "y": -250, "z": -48000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294960000,
+    "text": "PHASE 4: TICK",
+    "content": [
+      "# love.update(dt)",
+      "",
+      "The simulation heartbeat.",
+      "Calculates cinematic camera paths (lerp).",
+      "Polls input state for physics triggers."
+    ]
+  },
+  {
+    "x": 300, "y": 0, "z": -51000,
+    "w": 1600, "h": 900, "yaw": 0.5, "thickness": 40, "color": 4294960200,
+    "text": "PHASE 5: PHYSICS",
+    "content": [
+      "# sys_physics.lua",
+      "",
+      "Iterates the SoA kinematic buffers.",
+      "Updates spatial positions via velocity.",
+      "Recalculates Basis Vectors (FW/RT/UP)."
+    ]
+  },
+  {
+    "x": -300, "y": 0, "z": -54000,
+    "w": 1600, "h": 900, "yaw": -0.5, "thickness": 40, "color": 4294960400,
+    "text": "PHASE 6: SETUP",
+    "content": [
+      "# sys_renderer.lua",
+      "",
+      "Wipes the 32-bit ScreenPtr pixel buffer.",
+      "Clears the ZBuffer depth array to infinity.",
+      "Collects objects for view frustum culling."
+    ]
+  },
+  {
+    "x": 0, "y": 100, "z": -57000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4282703103,
+    "text": "PHASE 7: TRANSFORM",
+    "content": [
+      "# The Software Vertex Shader",
+      "",
+      "Local -> World -> View Projection mapping.",
+      "Executes Back-face Culling logic.",
+      "Calculates Flat Shading via Dot Products."
+    ]
+  },
+  {
+    "x": 150, "y": -200, "z": -60000,
+    "w": 1600, "h": 900, "yaw": 0.2, "thickness": 40, "color": 4294959000,
+    "text": "PHASE 8: RASTERIZE",
+    "content": [
+      "# The Core Math Engine",
+      "",
+      "Sorts visible triangles by Y-coordinate.",
+      "Interpolates edges across X and Z axes.",
+      "Executes per-pixel Z-Buffer depth checks."
+    ]
+  },
+  {
+    "x": 0, "y": 0, "z": -63000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4282703103,
+    "text": "PHASE 9: UI BLIT",
+    "content": [
+      "# Dynamic 2D in 3D Space",
+      "",
+      "Mathematically blends ImageData arrays.",
+      "Injects text directly into the depth frame.",
+      "Flips the final buffer to the display."
+    ]
+  }
+]
