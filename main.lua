@@ -228,7 +228,7 @@ local function updateTargetSide()
     local distScale = max(s.h, s.w * (CANVAS_H / CANVAS_W));
     local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING;
     -- local dist = GetViewDistance(s.w, s.h) * 1.5
-    print("IN UPDATETARGETSIDE:",dist)
+    -- print("IN UPDATETARGETSIDE:",dist)
     local fx, fy, fz = s.x + nx * dist, s.y, s.z + nz * dist
     local bx, by, bz = s.x - nx * dist, s.y, s.z - nz * dist
     local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
