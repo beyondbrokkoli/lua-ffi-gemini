@@ -16,35 +16,34 @@
   {
     "x": 250, "y": 50, "z": -33000,
     "w": 1600, "h": 900, "yaw": 0.3, "thickness": 40, "color": 4294959000,
-    "text": "SYSTEM CONTROLS",
+    "text": "CONTROLS",
     "content": [
-      "# Navigation | # Simulation",
+      "",
       "WASD/QE - Move Camera | C - Chaos Field",
       "Arrows - Pitch & Yaw | V - Vortex Spin",
       "J - Toggle Mouse Lock | G - Gravity Well",
-      "",
-      "# Presentation Mode | # Core Engine",
       "Space - Next Slide | Esc - Quick Quit",
-      "Backspace - Prev Slide | ",
-      "I / U - Exit Presenter | "
+      "Backspace - Prev Slide",
+      "I - Free Cam",
+      "U - Return to Free Cam"
     ]
   },
   {
     "x": -250, "y": -50, "z": -36000,
     "w": 1600, "h": 900, "yaw": -0.3, "thickness": 40, "color": 4294959200,
-    "text": "DATA ORIENTED DESIGN",
+    "text": "FEATURES",
     "content": [
-      "# Array of Structures | # Structure of Arrays",
-      "Messy Lua Tables | Contiguous C-Memory",
-      "Pointer Chasing | Linear Access",
-      "Frequent Cache Misses | Optimal Cache Locality",
-      "Slower Execution | Blistering Speed"
+      "Structure of Arrays",
+      "Contiguous C-Memory",
+      "Linear Access",
+      "Optimal Cache Locality",
+      "Blistering Speed"
     ]
   },
   {
     "x": 0, "y": 150, "z": -39000,
     "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294959400,
-    "text": "PHASE 1: BOOT",
+    "text": "PHASE 1",
     "content": [
       "# sys_memory.lua",
       "",
@@ -56,7 +55,7 @@
   {
     "x": 150, "y": -200, "z": -42000,
     "w": 1600, "h": 900, "yaw": 0.2, "thickness": 40, "color": 4294959600,
-    "text": "PHASE 2: SCENE SYNC",
+    "text": "PHASE 2",
     "content": [
       "# engine.lua",
       "",
@@ -68,7 +67,7 @@
   {
     "x": -150, "y": 100, "z": -45000,
     "w": 1600, "h": 900, "yaw": -0.2, "thickness": 40, "color": 4294959800,
-    "text": "PHASE 3: GEOMETRY",
+    "text": "PHASE 3",
     "content": [
       "# slides_internal.lua",
       "",
@@ -80,7 +79,7 @@
   {
     "x": 0, "y": -250, "z": -48000,
     "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294960000,
-    "text": "PHASE 4: TICK",
+    "text": "PHASE 4",
     "content": [
       "# love.update(dt)",
       "",
@@ -128,7 +127,7 @@
   {
     "x": 150, "y": -200, "z": -60000,
     "w": 1600, "h": 900, "yaw": 0.2, "thickness": 40, "color": 4294959000,
-    "text": "PHASE 8: RASTERIZE",
+    "text": "PHASE 8",
     "content": [
       "# The Core Math Engine",
       "",
@@ -140,7 +139,7 @@
   {
     "x": 0, "y": 0, "z": -63000,
     "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4282703103,
-    "text": "PHASE 9: UI BLIT",
+    "text": "FONT",
     "content": [
       "# Dynamic 2D in 3D Space",
       "",

@@ -356,17 +356,17 @@ function love.load()
         InitSlideTextCache()
         
         -- THE DEEP SPACE SWARM (1000 Asteroids)
-        SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 100)
-        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 400)     -- The jagged Meteorites!
+        SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 50)
+        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 625)     -- The jagged Meteorites!
         -- The Local Slide Sub-Swarms
-        SlidesInternal.CrystalCompanion(slideAPI, NumSlides, 100)
+        SlidesInternal.CrystalCompanion(slideAPI, NumSlides, 25)
         SlidesInternal.SpawnHeroDonut(slideAPI, 1)
-        SlidesInternal.SpawnChaosCluster(slideAPI, 1, 150)
---        SlidesInternal.SpawnParticleAccelerator(slideAPI, 2, 300)
---        SlidesInternal.SpawnChaosCluster(slideAPI, 3, 200)
---        SlidesInternal.SpawnParticleAccelerator(slideAPI, 3, 1000)
-        SlidesInternal.SpawnHeroDonut(slideAPI, 3)
-
+        SlidesInternal.SpawnChaosCluster(slideAPI, 2, 75)
+        SlidesInternal.SpawnParticleAccelerator(slideAPI, 3, 75)
+        SlidesInternal.SpawnChaosCluster(slideAPI, 4, 45)
+        SlidesInternal.SpawnParticleAccelerator(slideAPI, 5, 45)
+        SlidesInternal.SpawnHeroDonut(slideAPI, 6)
+        SlidesInternal.SpawnChaosCluster(slideAPI, 7, 20)
         
         -- Crucial: Compile the branchless pools!
         BuildCollisionPools()

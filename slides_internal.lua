@@ -47,9 +47,9 @@ function SlidesInternal.SpawnHeroDonut(api, homeSlideIdx)
     local sz = api.Sphere_Z[homeSlideIdx]
 
     -- A highly detailed (64x32), thick, smaller donut.
-    -- Color: 0xFF44CCFF (The Crystal Blue)
+    -- Color: 0xFF444444 (The Crystal Blue)
     -- The last argument is 'true': It gets a Hitbox!
-    local tId = api.CreateTorus(sx, sy, sz, 45, 20, 64, 32, 0xFF44CCFF, true)
+    local tId = api.CreateTorus(sx, sy, sz, 45, 20, 64, 32, 0xFFFF99CC, true)
 
     api.Obj_HomeIdx[tId] = homeSlideIdx
     
