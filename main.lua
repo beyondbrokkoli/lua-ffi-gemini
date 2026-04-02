@@ -9,13 +9,13 @@ local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, ma
 local random, sqrt, cos, sin, pi, atan2 = math.random, math.sqrt, math.cos, math.sin, math.pi, math.atan2
 
 -- Add these Window State Globals
-pendingResize = false;
-resizeTimer = 0;
-isFullscreen = true;
-
+pendingResize = false
+resizeTimer = 0
+isFullscreen = true
+isMouseCaptured = false
 -- 1.0 = Perfect Fullscreen Fit. 1.5 = Asteroid View (Zoomed out)
-local PRESENTATION_ZOOM = 1.0; 
-local CAM_PADDING = 200; -- Set to 200 later if you want a physical distance buffer
+local PRESENTATION_ZOOM = 1.0
+local CAM_PADDING = 200 -- Set to 200 later if you want a physical distance buffer
 
 local function lerp(a, b, t) return a + (b - a) * t end
 local function lerpAngle(a, b, t)
