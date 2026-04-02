@@ -410,6 +410,7 @@ function love.update(dt)
         resizeTimer = resizeTimer - dt
         if resizeTimer <= 0 then
             ReinitBuffers(love.graphics.getWidth(), love.graphics.getHeight())
+            InitSlideTextCache()
             pendingResize = false
         end
         return
