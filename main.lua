@@ -79,13 +79,13 @@ local function InitSlideTextCache()
                         local leftText = rawText:sub(1, splitPos - 1):match("^%s*(.-)%s*$")
                         local rightText = rawText:sub(splitPos + 1):match("^%s*(.-)%s*$")
                         love.graphics.setFont(currentFont)
-                        
+
                         -- THE FIX: math.max(1, width) prevents 0-dimension canvases!
                         local lw1, lh1 = math.max(1, currentFont:getWidth(leftText)), currentFont:getHeight()
                         local c1 = love.graphics.newCanvas(lw1, lh1)
                         love.graphics.setCanvas(c1); love.graphics.clear(0,0,0,0); love.graphics.setColor(1,1,1,1); love.graphics.print(leftText, 0, 0); love.graphics.setCanvas()
                         local id1 = c1:newImageData()
-                        
+
                         -- THE FIX: Same for the right side!
                         local lw2, lh2 = math.max(1, currentFont:getWidth(rightText)), currentFont:getHeight()
                         local c2 = love.graphics.newCanvas(lw2, lh2)
@@ -100,13 +100,13 @@ local function InitSlideTextCache()
                         })
                     else
                         love.graphics.setFont(currentFont)
-                        
+
                         -- THE FIX: Same for standard lines!
                         local lw, lh = math.max(1, currentFont:getWidth(rawText)), currentFont:getHeight()
                         local canv = love.graphics.newCanvas(lw, lh)
                         love.graphics.setCanvas(canv); love.graphics.clear(0,0,0,0); love.graphics.setColor(1,1,1,1); love.graphics.print(rawText, 0, 0); love.graphics.setCanvas()
                         local idat = canv:newImageData()
-                        
+
                         table.insert(SlideTitles[i].lines, {
                             is_split = false,
                             ptr = ffi.cast("uint32_t*", idat:getPointer()), w = lw, h = lh, _keepAlive = idat
@@ -265,14 +265,14 @@ local function TriggerGravity()
     for i = 0, Pool_Kinematic_Count - 1 do
         local id = Pool_Kinematic[i]
         local homeIdx = Obj_HomeIdx[id]
-        
+
         -- ONLY apply slide gravity if the object is attached to a slide!
         if homeIdx >= 0 then
             local dx = Sphere_X[homeIdx] - Obj_X[id]
             local dy = Sphere_Y[homeIdx] - Obj_Y[id]
             local dz = Sphere_Z[homeIdx] - Obj_Z[id]
             local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
-            
+
             if dist > 0.1 then
                 -- Violent implosion force!
                 Obj_VelX[id] = Obj_VelX[id] + (dx/dist) * 800
@@ -286,7 +286,7 @@ end
 local function BuildCollisionPools()
     Pool_SlideCollider_Count = 0
     Pool_DeepSpace_Count = 0  -- Reset Deep Space Pool
-    
+
     for i = 0, Pool_Collider_Count - 1 do
         local id = Pool_Collider[i]
         if Obj_HomeIdx[id] >= 0 then
@@ -340,21 +340,21 @@ function love.load()
     ReinitBuffers(windowW, windowH)
     love.mouse.setRelativeMode(isMouseCaptured)
     Font_UI = love.graphics.newFont(14)
-    
+
     local sceneState = Engine.Boot(slideAPI, "scene.json")
     if sceneState then
         manifest, NumSlides = sceneState.manifest, sceneState.NumSlides
         local b = sceneState.bounds
         B_MinX, B_MinY, B_MinZ, B_MaxX, B_MaxY, B_MaxZ = b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ
-        
+
         TargetSlide = 0
         updateTargetSide()
         Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
         startX, startY, startZ, startYaw, startPitch = tX, tY, tZ, tYaw, tPitch
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
-        
+
         InitSlideTextCache()
-        
+
         -- THE DEEP SPACE SWARM (1000 Asteroids)
         SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 50)
         SlidesInternal.SpawnSpaceAsteroids(slideAPI, 625)     -- The jagged Meteorites!
@@ -367,10 +367,10 @@ function love.load()
         SlidesInternal.SpawnParticleAccelerator(slideAPI, 5, 45)
         SlidesInternal.SpawnHeroDonut(slideAPI, 6)
         SlidesInternal.SpawnChaosCluster(slideAPI, 7, 20)
-        
+
         -- Crucial: Compile the branchless pools!
         BuildCollisionPools()
-        
+
         UpdateCameraBasis()
     end
 end
@@ -382,7 +382,7 @@ function love.keypressed(key)
         lerpT, arrivalTimer = 0, 0
         updateTargetSide()
         presentationMode = true
-    elseif key == "i" or key == "u" then 
+    elseif key == "i" or key == "u" then
         presentationMode = false
         if key == "u" then Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch end
     elseif presentationMode and (key == "space" or key == "backspace") then
@@ -390,17 +390,17 @@ function love.keypressed(key)
         lerpT, arrivalTimer = 0, 0
         TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
         updateTargetSide()
-    elseif key == "j" and not presentationMode then 
+    elseif key == "j" and not presentationMode then
         isMouseCaptured = not isMouseCaptured
         love.mouse.setRelativeMode(isMouseCaptured)
     elseif key == "c" then TriggerChaosField()
     elseif key == "v" then TriggerVortex() -- The Spin Fix!
     elseif key == "g" then TriggerGravity() -- The Implosion Fix!
     elseif key == "escape" then love.event.quit()
-    -- elseif key == "f" then 
+    -- elseif key == "f" then
         -- isFullscreen = not isFullscreen
         -- love.window.setFullscreen(isFullscreen)
-        -- pendingResize = true 
+        -- pendingResize = true
         -- resizeTimer = 0.2
     end
 end
@@ -415,7 +415,7 @@ function love.update(dt)
         end
         return
     end
-    
+
     if presentationMode and NumSlides > 0 then
         lerpT = min(1.0, lerpT + dt * 1)
         local easeT = 1 - (1 - lerpT) * (1 - lerpT)
@@ -441,7 +441,7 @@ function love.update(dt)
         if love.keyboard.isDown("d") then Cam_X, Cam_Z = Cam_X + Cam_RTX * s, Cam_Z + Cam_RTZ * s end
         if love.keyboard.isDown("e") then Cam_Y = Cam_Y - s end
         if love.keyboard.isDown("q") then Cam_Y = Cam_Y + s end
-        
+
         local rotSpeed = 2 * dt
         if love.keyboard.isDown("left") then Cam_Yaw = Cam_Yaw - rotSpeed end
         if love.keyboard.isDown("right") then Cam_Yaw = Cam_Yaw + rotSpeed end
@@ -449,7 +449,7 @@ function love.update(dt)
         if love.keyboard.isDown("down") then Cam_Pitch = Cam_Pitch + rotSpeed end
         Cam_Pitch = max(-1.56, min(1.56, Cam_Pitch))
     end
-    
+
     UpdateCameraBasis()
     Physics.IntegrateKinematics(dt)
     Physics.ResolveCollisions()
@@ -471,9 +471,9 @@ function love.resize(w, h)
 end
 
 function love.mousemoved(x, y, dx, dy)
-    if isMouseCaptured then 
+    if isMouseCaptured then
         local sensitivity = 0.002
         Cam_Yaw = Cam_Yaw + (dx * sensitivity)
-        Cam_Pitch = Cam_Pitch + (dy * sensitivity) 
-    end 
+        Cam_Pitch = Cam_Pitch + (dy * sensitivity)
+    end
 end
