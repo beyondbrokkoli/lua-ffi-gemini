@@ -410,6 +410,11 @@ function love.update(dt)
         resizeTimer = resizeTimer - dt
         if resizeTimer <= 0 then
             ReinitBuffers(love.graphics.getWidth(), love.graphics.getHeight())
+            updateTargetSide() -- RECACLULATE PERFECT DISTANCE
+            if presentationMode and isSettled then
+                Cam_X, Cam_Y, Cam_Z = tX, tY, tZ
+                Cam_Yaw, Cam_Pitch = tYaw, tPitch
+            end
             InitSlideTextCache()
             pendingResize = false
         end
