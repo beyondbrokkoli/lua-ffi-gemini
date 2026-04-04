@@ -51,28 +51,61 @@ function SlideGuard.ProtectAPI(raw_api) local guarded_api = {}
             minZ, maxZ = math.min(minZ, data.z - ht), math.max(maxZ, data.z + ht)
             raw_api.Box_X[id], raw_api.Box_Y[id], raw_api.Box_Z[id] = data.x, data.y, data.z
             raw_api.Box_HW[id], raw_api.Box_HH[id], raw_api.Box_HT[id] = hw, hh, ht
+
             local angle = data.yaw or 0
+            local pitch = data.pitch or 0
+
             raw_api.Box_CosA[id] = math.cos(angle)
             raw_api.Box_SinA[id] = math.sin(angle)
-            raw_api.Box_NX[id] = math.sin(angle)
-            raw_api.Box_NZ[id] = math.cos(angle)
+
+            -- 1. Euler to Cartesian (Directional Vectors)
+            local cy, sy = math.cos(angle), math.sin(angle)
+            local cp, sp = math.cos(pitch), math.sin(pitch)
+
+            -- Forward Vector (This is our true 3D Normal)
+            local fwx, fwy, fwz = sy * cp, sp, cy * cp
+
+            -- Right Vector (Stays flat assuming we don't use Roll)
+            local rtx, rty, rtz = cy, 0, -sy
+
+            -- Up Vector (Cross product of Right and Forward)
+            local upx = fwy * rtz
+            local upy = fwz * rtx - fwx * rtz
+            local upz = -fwy * rtx
+
+            -- 2. Store the 3D Normal for rendering and camera math
+            raw_api.Box_NX[id] = fwx
+            raw_api.Box_NY[id] = fwy
+            raw_api.Box_NZ[id] = fwz
+
+            -- 3. Store the OBB Basis Vectors for the physics engine
+            raw_api.Box_FWX[id], raw_api.Box_FWY[id], raw_api.Box_FWZ[id] = fwx, fwy, fwz
+            raw_api.Box_RTX[id], raw_api.Box_RTY[id], raw_api.Box_RTZ[id] = rtx, 0, rtz
+            raw_api.Box_UPX[id], raw_api.Box_UPY[id], raw_api.Box_UPZ[id] = upx, upy, upz
+
             local halfDiag = math.sqrt(hw^2 + hh^2 + ht^2)
             raw_api.Sphere_X[id] = data.x
             raw_api.Sphere_Y[id] = data.y
             raw_api.Sphere_Z[id] = data.z
             raw_api.Sphere_RSq[id] = (halfDiag + 100)^2
-            if not mesh_map[id] then mesh_map[id] = Internal.BuildSlideMesh(raw_api, id, data)
+
+            if not mesh_map[id] then
+                mesh_map[id] = Internal.BuildSlideMesh(raw_api, id, data)
                 audit("INFO", string.format("Mesh Spawner: Created Object for Slide %d", id))
             end
+
+            -- 4. Apply the true 3D rotation matrix to the visual mesh object
             local mId = mesh_map[id]
             raw_api.Obj_X[mId], raw_api.Obj_Y[mId], raw_api.Obj_Z[mId] = data.x, data.y, data.z
             raw_api.Obj_Yaw[mId] = angle
-            raw_api.Obj_Pitch[mId] = 0
-            local cy, sy = math.cos(angle), math.sin(angle)
-            raw_api.Obj_FWX[mId], raw_api.Obj_FWY[mId], raw_api.Obj_FWZ[mId] = sy, 0, cy
-            raw_api.Obj_RTX[mId], raw_api.Obj_RTZ[mId] = cy, -sy
-            raw_api.Obj_UPX[mId], raw_api.Obj_UPY[mId], raw_api.Obj_UPZ[mId] = 0, 1, 0
+            raw_api.Obj_Pitch[mId] = pitch
+
+            raw_api.Obj_FWX[mId], raw_api.Obj_FWY[mId], raw_api.Obj_FWZ[mId] = fwx, fwy, fwz
+            raw_api.Obj_RTX[mId], raw_api.Obj_RTY[mId], raw_api.Obj_RTZ[mId] = rtx, rty, rtz
+            raw_api.Obj_UPX[mId], raw_api.Obj_UPY[mId], raw_api.Obj_UPZ[mId] = upx, upy, upz
+
             return true
+
         end)
     end
     function guarded_api.GetFinalBounds(padding) return { minX = minX - padding, minY = minY - padding, minZ = minZ - padding, maxX = maxX + padding, maxY = maxY + padding, maxZ = maxZ + padding }

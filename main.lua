@@ -195,10 +195,15 @@ local slideAPI = {
     Obj_HomeIdx = Obj_HomeIdx,
     Box_X = Box_X, Box_Y = Box_Y, Box_Z = Box_Z,
     Box_HW = Box_HW, Box_HH = Box_HH, Box_HT = Box_HT,
-    Box_CosA = Box_CosA, Box_SinA = Box_SinA, Box_NX = Box_NX, Box_NZ = Box_NZ,
+    Box_CosA = Box_CosA, Box_SinA = Box_SinA,
+    Box_NX = Box_NX, Box_NY = Box_NY, Box_NZ = Box_NZ,
+    Box_FWX = Box_FWX, Box_FWY = Box_FWY, Box_FWZ = Box_FWZ,
+    Box_RTX = Box_RTX, Box_RTY = Box_RTY, Box_RTZ = Box_RTZ,
+    Box_UPX = Box_UPX, Box_UPY = Box_UPY, Box_UPZ = Box_UPZ,
     Sphere_X = Sphere_X, Sphere_Y = Sphere_Y, Sphere_Z = Sphere_Z, Sphere_RSq = Sphere_RSq,
     Obj_FWX = Obj_FWX, Obj_FWY = Obj_FWY, Obj_FWZ = Obj_FWZ,
-    Obj_RTX = Obj_RTX, Obj_RTZ = Obj_RTZ, Obj_UPX = Obj_UPX, Obj_UPY = Obj_UPY, Obj_UPZ = Obj_UPZ,
+    Obj_RTX = Obj_RTX, Obj_RTY = Obj_RTY, Obj_RTZ = Obj_RTZ,
+    Obj_UPX = Obj_UPX, Obj_UPY = Obj_UPY, Obj_UPZ = Obj_UPZ,
     NumObjects = function() return NumObjects end
 }
 local function UpdateCameraBasis()
@@ -215,6 +220,44 @@ local function GetViewDistance(w, h)
     return (distScale * Cam_FOV) / CANVAS_H + 200
 end
 local function updateTargetSide()
+    local s = manifest[TargetSlide]
+    if not s then return end
+
+    -- 1. Grab the TRUE 3D Normals
+    local nx = Box_NX[TargetSlide] or 0
+    local ny = Box_NY[TargetSlide] or 0
+    local nz = Box_NZ[TargetSlide] or 1
+
+    local distScale = math.max(s.h, s.w * (CANVAS_H / CANVAS_W))
+    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
+
+    -- 2. 3D GLIDE: Offset camera out along the 3D normal vector
+    local fx, fy, fz = s.x + nx * dist, s.y + ny * dist, s.z + nz * dist
+    local bx, by, bz = s.x - nx * dist, s.y - ny * dist, s.z - nz * dist
+
+    -- 3. Side Selection (Distance Squared)
+    local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
+    local dB = (bx - Cam_X)^2 + (by - Cam_Y)^2 + (bz - Cam_Z)^2
+
+    local dx, dy, dz
+    if dF <= dB then
+        -- Front side
+        tX, tY, tZ = fx, fy, fz
+        dx, dy, dz = s.x - fx, s.y - fy, s.z - fz 
+    else
+        -- Back side
+        tX, tY, tZ = bx, by, bz
+        dx, dy, dz = s.x - bx, s.y - by, s.z - bz
+    end
+
+    -- 4. Calculate True Orbital LookAt Angles
+    tYaw = math.atan2(dx, dz)
+    
+    -- [DEFENSIVE LOCK] Force all slides to be vertical until full 3D OBB/Render logic is built
+    -- A true 3D pitch would be: math.atan2(dy, math.sqrt(dx*dx + dz*dz))
+    tPitch = 0 
+end
+local function OLD_updateTargetSide()
     local s = manifest[TargetSlide]
     if not s then return end
     local nx, nz = Box_NX[TargetSlide], Box_NZ[TargetSlide]

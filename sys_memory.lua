@@ -24,6 +24,9 @@ Obj_FWX = ffi.new("float[?]", MAX_OBJS)
 Obj_FWY = ffi.new("float[?]", MAX_OBJS)
 Obj_FWZ = ffi.new("float[?]", MAX_OBJS)
 Obj_RTX = ffi.new("float[?]", MAX_OBJS)
+
+Obj_RTY = ffi.new("float[?]", MAX_OBJS) -- Welcome back to reality
+
 Obj_RTZ = ffi.new("float[?]", MAX_OBJS)
 Obj_UPX = ffi.new("float[?]", MAX_OBJS)
 Obj_UPY = ffi.new("float[?]", MAX_OBJS)
@@ -68,7 +71,20 @@ Box_HT = ffi.new("float[?]", MAX_SLIDES)
 Box_CosA = ffi.new("float[?]", MAX_SLIDES)
 Box_SinA = ffi.new("float[?]", MAX_SLIDES)
 Box_NX = ffi.new("float[?]", MAX_SLIDES)
+Box_NY = ffi.new("float[?]", MAX_SLIDES); -- [NEW] The missing Y normal!
 Box_NZ = ffi.new("float[?]", MAX_SLIDES)
+
+-- [NEW] The True 3D Basis Vectors for OBB Physics Collisions
+Box_FWX = ffi.new("float[?]", MAX_SLIDES);
+Box_FWY = ffi.new("float[?]", MAX_SLIDES);
+Box_FWZ = ffi.new("float[?]", MAX_SLIDES);
+Box_RTX = ffi.new("float[?]", MAX_SLIDES);
+Box_RTY = ffi.new("float[?]", MAX_SLIDES);
+Box_RTZ = ffi.new("float[?]", MAX_SLIDES);
+Box_UPX = ffi.new("float[?]", MAX_SLIDES);
+Box_UPY = ffi.new("float[?]", MAX_SLIDES);
+Box_UPZ = ffi.new("float[?]", MAX_SLIDES);
+
 Cam_X, Cam_Y, Cam_Z = 0, 0, 0
 Cam_Yaw, Cam_Pitch = 0, 0
 Cam_FOV = 600
