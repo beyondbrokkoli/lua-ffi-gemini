@@ -39,7 +39,7 @@
   },
   {
     "x": 0, "y": 1000, "z": -26000,
-    "w": 1600, "h": 900, "yaw": 0.0, "pitch": 0.15, "thickness": 40, "color": 4294954052,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294954052,
     "text": "ZEN MODE",
     "content": [
       "",
@@ -52,7 +52,7 @@
   },
   {
     "x": 0, "y": -500, "z": -33000,
-    "w": 1600, "h": 900, "yaw": 3.14159, "pitch": 0.0, "thickness": 40, "color": 4294927974,
+    "w": 1600, "h": 900, "yaw": 3.14159, "thickness": 40, "color": 4294927974,
     "text": "TWO-SIDED LIGHTING",
     "content": [
       "~ # 180 DEGREE INVERSION",
