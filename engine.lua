@@ -28,38 +28,26 @@ function Engine.SyncGeometry()
     local keys = {}
     for k in pairs(Engine.manifest) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return tonumber(a) < tonumber(b) end)
-
-    -- THE GOLDEN ARCHETYPE (Safe Defaults)
-    local SLIDE_DEFAULTS = {
-        w = 1600, h = 900,
-        thickness = 40,
-        color = 0xFFFFFFFF,
-        yaw = 0, pitch = 0
-    }
-
+    local SLIDE_DEFAULTS = { w = 1600, h = 900, thickness = 40, color = 0xFFFFFFFF, yaw = 0.0, pitch = 0.0 }
     for i, original_key in ipairs(keys) do
         local id = i - 1
         local raw_node = Engine.manifest[original_key]
-
-        -- 1. Merge the LLM's content with our safe defaults
         local node = SlideGuard.deep_merge(SLIDE_DEFAULTS, raw_node)
-
-        -- 2. THE PROCEDURAL BRIDGE: If coordinates are missing, auto-place them
         if not node.x or not node.y or not node.z then
             node.x = math.sin(id * 0.5) * 2000
-            node.y = id * -800  -- Stair-step down
-            node.z = id * -10000 -- Retreat into the void
-
-            -- Add subtle organic rotation if not explicitly overridden by the JSON
-            node.yaw = raw_node.yaw or (id * 0.2)
-            node.pitch = raw_node.pitch or (math.sin(id) * 0.2)
+            node.y = id * -800
+            node.z = id * -10000
         end
-
+        if raw_node.yaw == nil then
+            node.yaw = id * 0.2
+        end
+        if raw_node.pitch == nil then
+            node.pitch = math.sin(id) * 0.2
+        end
         clean_manifest[id] = node
         Engine.api.RegisterGeometry(id, node)
         count = count + 1
     end
-
     Engine.manifest = clean_manifest
     return count, Engine.api.GetFinalBounds(8000)
 end
@@ -83,3 +71,4 @@ function Engine.DrawTerminal(ScreenPtr, CANVAS_W, CANVAS_H)
     end
 end
 return Engine
+
