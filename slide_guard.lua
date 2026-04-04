@@ -29,14 +29,21 @@ local function safe_execute(func, ...) local success, result = xpcall(func, debu
     end
     return result
 end
-function SlideGuard.PreflightCheck(manifest, max_slides) audit("INFO", "Validating Scene Manifest against Geometry Constraints.")
-    if type(manifest) ~= "table" then audit("FATAL", "Manifest must be a Table-based Structure.")
+function SlideGuard.PreflightCheck(manifest, max_slides)
+    audit("INFO", "Validating Scene Manifest against Geometry Constraints.")
+    if type(manifest) ~= "table" then
+        audit("FATAL", "Manifest must be a Table-based Structure.")
         return false
     end
     local verified = 0
-    for id, node in pairs(manifest) do if type(id) ~= "number" or id < 0 or id >= max_slides then audit("WARN", string.format("Index [%s] out of FFI buffer bounds.", tostring(id)))
-        else verified = verified + 1
-        end end
+    for id, node in pairs(manifest) do
+        if type(id) ~= "number" or id < 0 or id >= max_slides then
+            audit("WARN", string.format("Index [%s] out of FFI buffer bounds.", tostring(id)))
+        else
+            -- We no longer mandate x, y, z, w, h here because SyncGeometry auto-fills them!
+            verified = verified + 1
+        end
+    end
     audit("INFO", string.format("Preflight Complete: %d nodes verified.", verified))
     return verified > 0
 end
