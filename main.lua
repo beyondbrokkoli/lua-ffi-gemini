@@ -231,7 +231,8 @@ local function updateTargetSide()
         tX, tY, tZ = bx, by, bz
         tYaw = atan2(s.x - bx, s.z - bz)
     end
-    tPitch = s.pitch or 0
+    tPitch = 0
+    -- tPitch = s.pitch or 0
 end
 local function TriggerChaosField()
     for i = 0, Pool_Kinematic_Count - 1 do
