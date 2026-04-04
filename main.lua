@@ -1,23 +1,18 @@
-require("sys_memory") -- Load all global arrays first!
+require("sys_memory")
 local ffi = require("ffi")
 local Engine = require("engine")
 local SlidesInternal = require("slides_internal")
 local Physics = require("sys_physics")
 local Renderer = require("sys_renderer")
-
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local random, sqrt, cos, sin, pi, atan2 = math.random, math.sqrt, math.cos, math.sin, math.pi, math.atan2
-
--- Add these Window State Globals
 pendingResize = false
 resizeTimer = 0
 isFullscreen = true
 isMouseCaptured = false
-isZenMode = false -- THE NEW GLOBAL
--- 1.0 = Perfect Fullscreen Fit. 1.5 = Asteroid View (Zoomed out)
+isZenMode = false
 local PRESENTATION_ZOOM = 1.0
-local CAM_PADDING = 200 -- Set to 200 later if you want a physical distance buffer
-
+local CAM_PADDING = 200
 local function lerp(a, b, t) return a + (b - a) * t end
 local function lerpAngle(a, b, t)
     local diff = (b - a + pi) % (pi * 2) - pi
@@ -33,61 +28,47 @@ local function ParseSlideLine(rawText, fonts)
         for _, col in ipairs(rightCols) do table.insert(columns, col) end
         return columns
     end
-    
     local cleanText = rawText
     local currentFont = fonts.body
     local currentAlign = "left"
-
-    -- 1. Check for Centering signal (~ )
     if cleanText:match("^~%s+") then
         cleanText = cleanText:gsub("^~%s+", "")
         currentAlign = "center"
     end
-    
-    -- 2. Check for Header signal (# )
     if cleanText:match("^#%s+") then
         cleanText = cleanText:gsub("^#%s+", "")
         currentFont = fonts.head
     end
-    
     return { { text = cleanText, font = currentFont, align = currentAlign } }
 end
-
 local function InitSlideTextCache()
     SlideTitles = {}
     for i = 0, NumSlides - 1 do
         local node = manifest[i]
         local titleText = (node and node.text) or ("SLIDE " .. tostring(i + 1))
         local w, h = Box_HW[i] * 2, Box_HH[i] * 2
-        
         local distScale = max(h, w * (CANVAS_H / CANVAS_W))
         local optDist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
         local text_depth = optDist - (Box_HT[i] + 5)
         local optimal_scale = (Cam_FOV / text_depth)
-        
         local fonts = {
-            title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))), -- Reduced to 0.10!
+            title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))),
             head = love.graphics.newFont(max(8, floor((h * 0.08) * optimal_scale))),
             body = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
         }
-        
         local virtW = max(1, floor(w * optimal_scale))
         local virtH = max(1, floor(h * optimal_scale))
         local giantCanvas = love.graphics.newCanvas(virtW, virtH)
-        
         love.graphics.setCanvas(giantCanvas)
         love.graphics.clear(0, 0, 0, 0)
         love.graphics.setColor(1, 1, 1, 1)
-        
         local currentY = floor(virtH * 0.05)
         local paddingX = floor(virtW * 0.05)
         local maxTextWidth = virtW - (paddingX * 2)
-        local bottomLimit = virtH - floor(virtH * 0.12) -- 5% bottom padding
-        
+        local bottomLimit = virtH - floor(virtH * 0.12)
         love.graphics.setFont(fonts.title)
         love.graphics.printf(titleText, paddingX, currentY, maxTextWidth, "center")
         currentY = currentY + fonts.title:getHeight() + floor(virtH * 0.02)
-        
         if node and node.content then
             for _, s in ipairs(node.content) do
                 if s ~= "" then
@@ -95,20 +76,15 @@ local function InitSlideTextCache()
                     local numCols = #columns
                     local colWidth = floor(maxTextWidth / numCols)
                     local maxRowHeight = 0
-                    
                     for colIdx, colData in ipairs(columns) do
                         love.graphics.setFont(colData.font)
                         local xOffset = paddingX + ((colIdx - 1) * colWidth)
                         local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0)
-                        
                         local _, wrappedLines = colData.font:getWrap(colData.text, colPrintWidth)
                         local lineY = currentY
                         local colHeight = 0
-                        
-                        -- The Truncation Loop
                         for lIdx, lineStr in ipairs(wrappedLines) do
                             if (lineY + colData.font:getHeight()) > bottomLimit then
-                                -- We hit the bottom! Truncate and abort drawing this column.
                                 local chopped = lineStr:sub(1, -4) .. "..."
                                 love.graphics.printf(chopped, xOffset, lineY, colPrintWidth, colData.align)
                                 colHeight = colHeight + colData.font:getHeight()
@@ -119,20 +95,15 @@ local function InitSlideTextCache()
                                 colHeight = colHeight + colData.font:getHeight()
                             end
                         end
-
                         if colHeight > maxRowHeight then maxRowHeight = colHeight end
-
                     end
-                    -- GEAR 2: The Micro-Gap (Shrunk from 2% to 0.5%)
                     currentY = currentY + maxRowHeight + floor(virtH * 0.005)
                 else
-                    -- GEAR 3: The Macro-Gap! If s == "", advance the cursor by one line of text.
                     currentY = currentY + fonts.body:getHeight()
                 end
             end
         end
         love.graphics.setCanvas()
-        
         local imgData = giantCanvas:newImageData()
         SlideTitles[i] = {
             ptr = ffi.cast("uint32_t*", imgData:getPointer()),
@@ -149,8 +120,10 @@ local function CreateTriObject(x, y, z, vCount, tCount, radius, isKinematic, has
     Obj_X[id], Obj_Y[id], Obj_Z[id] = x, y, z
     Obj_Yaw[id], Obj_Pitch[id] = 0, 0
     Obj_Radius[id] = radius or 50
-    Obj_VertStart[id] = NumTotalVerts; Obj_VertCount[id] = vCount
-    Obj_TriStart[id] = NumTotalTris; Obj_TriCount[id] = tCount
+    Obj_VertStart[id] = NumTotalVerts
+    Obj_VertCount[id] = vCount
+    Obj_TriStart[id] = NumTotalTris
+    Obj_TriCount[id] = tCount
     NumTotalVerts = NumTotalVerts + vCount
     NumTotalTris = NumTotalTris + tCount
     if isKinematic then
@@ -165,7 +138,6 @@ local function CreateTriObject(x, y, z, vCount, tCount, radius, isKinematic, has
     Pool_Solid_Count = Pool_Solid_Count + 1
     return id
 end
-
 local function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides, baseColor, hasCollision)
     baseColor = baseColor or 0xFFFFCC44
     local bound = mainRadius + tubeRadius
@@ -210,7 +182,6 @@ local function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides, 
     end
     return id
 end
-
 local slideAPI = {
     CreateTriObject = CreateTriObject, CreateTorus = CreateTorus,
     Obj_VertStart = Obj_VertStart, Obj_VertCount = Obj_VertCount,
@@ -230,7 +201,6 @@ local slideAPI = {
     Obj_RTX = Obj_RTX, Obj_RTZ = Obj_RTZ, Obj_UPX = Obj_UPX, Obj_UPY = Obj_UPY, Obj_UPZ = Obj_UPZ,
     NumObjects = function() return NumObjects end
 }
-
 local function UpdateCameraBasis()
     local cy, sy = cos(Cam_Yaw), sin(Cam_Yaw)
     local cp, sp = cos(Cam_Pitch), sin(Cam_Pitch)
@@ -240,26 +210,16 @@ local function UpdateCameraBasis()
     Cam_UPY = Cam_FWZ * Cam_RTX - Cam_FWX * Cam_RTZ
     Cam_UPZ = -Cam_FWY * Cam_RTX
 end
-
 local function GetViewDistance(w, h)
     local distScale = max(h, w * (CANVAS_H / CANVAS_W))
     return (distScale * Cam_FOV) / CANVAS_H + 200
 end
-
 local function updateTargetSide()
     local s = manifest[TargetSlide]
     if not s then return end
     local nx, nz = Box_NX[TargetSlide], Box_NZ[TargetSlide]
-
-    local distScale = max(s.h, s.w * (CANVAS_H / CANVAS_W));
-    -- If Zen Mode is active, strip the padding so it sits perfectly flush with the screen!
+    local distScale = max(s.h, s.w * (CANVAS_H / CANVAS_W))
     local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
-
-
-    -- Replace the GetViewDistance call with the raw "Perfect Fit" math
-    -- local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING;
-    -- local dist = GetViewDistance(s.w, s.h) * 1.5
-    -- print("IN UPDATETARGETSIDE:",dist)
     local fx, fy, fz = s.x + nx * dist, s.y, s.z + nz * dist
     local bx, by, bz = s.x - nx * dist, s.y, s.z - nz * dist
     local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
@@ -286,26 +246,20 @@ end
 local function TriggerVortex()
     for i = 0, Pool_Kinematic_Count - 1 do
         local id = Pool_Kinematic[i]
-        -- Pure rotational injection!
         Obj_RotSpeedYaw[id] = Obj_RotSpeedYaw[id] + (math.random() - 0.5) * 50
         Obj_RotSpeedPitch[id] = Obj_RotSpeedPitch[id] + (math.random() - 0.5) * 50
     end
 end
-
 local function TriggerGravity()
     for i = 0, Pool_Kinematic_Count - 1 do
         local id = Pool_Kinematic[i]
         local homeIdx = Obj_HomeIdx[id]
-
-        -- ONLY apply slide gravity if the object is attached to a slide!
         if homeIdx >= 0 then
             local dx = Sphere_X[homeIdx] - Obj_X[id]
             local dy = Sphere_Y[homeIdx] - Obj_Y[id]
             local dz = Sphere_Z[homeIdx] - Obj_Z[id]
             local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
-
             if dist > 0.1 then
-                -- Violent implosion force!
                 Obj_VelX[id] = Obj_VelX[id] + (dx/dist) * 800
                 Obj_VelY[id] = Obj_VelY[id] + (dy/dist) * 800
                 Obj_VelZ[id] = Obj_VelZ[id] + (dz/dist) * 800
@@ -313,83 +267,61 @@ local function TriggerGravity()
         end
     end
 end
-
 local function BuildCollisionPools()
     Pool_SlideCollider_Count = 0
-    Pool_DeepSpace_Count = 0  -- Reset Deep Space Pool
-
+    Pool_DeepSpace_Count = 0
     for i = 0, Pool_Collider_Count - 1 do
         local id = Pool_Collider[i]
         if Obj_HomeIdx[id] >= 0 then
-            -- Crystals and Donuts
             Pool_SlideCollider[Pool_SlideCollider_Count] = id
             Pool_SlideCollider_Count = Pool_SlideCollider_Count + 1
         else
-            -- Asteroids
             Pool_DeepSpace[Pool_DeepSpace_Count] = id
             Pool_DeepSpace_Count = Pool_DeepSpace_Count + 1
         end
     end
 end
-
 function love.load()
-    love.window.setMode(800, 800, { fullscreen = true, vsync = 0, resizable = true })
-    local windowW, windowH = love.graphics.getDimensions()
-    -- local displayCount = love.window.getDisplayCount()
-    -- local primaryIndex = 1 -- Fallback
-
-    -- Find which index is actually the Primary (0,0) monitor
-    -- for i = 1, displayCount do
-       -- local x, y = love.window.getPosition(i)
-       -- if x == 0 and y == 0 then
-         --   primaryIndex = i
-         --   break
-       -- end
-   -- end
-
-    -- Get hardware-validated modes for the TRUE primary monitor
-   -- local modes = love.window.getFullscreenModes(primaryIndex)
-    --local windowW, windowH = love.window.getDesktopDimensions(primaryIndex)
-
---    if #modes > 0 then
-  --      -- Use the highest hardware-supported resolution found
-    --    windowW = modes[1].width
-      --  windowH = modes[1].height
-  --  end
-
-    -- Ausschlussverfahren: Exclusive for Windows (Bypass DWM), Desktop for Linux (VM Safe)
-    --local targetOS = love.system.getOS()
-    --local fsType = (targetOS == "Windows") and "exclusive" or "desktop"
- --   love.window.setMode(windowW, windowH, {
-   --     fullscreen = true,
-        -- fullscreentype = "exclusive",
-     --   fullscreentype = fsType,
-     --   display = primaryIndex, -- Target the specific hardware index
-    ----    vsync = 0,
-     --   centered = true
-   -- })
+    local displayCount = love.window.getDisplayCount()
+    local primaryIndex = 1
+    for i = 1, displayCount do
+        local x, y = love.window.getPosition(i)
+        if x == 0 and y == 0 then
+            primaryIndex = i
+            break
+        end
+    end
+    local modes = love.window.getFullscreenModes(primaryIndex)
+    local windowW, windowH = love.window.getDesktopDimensions(primaryIndex)
+    if #modes > 0 then
+        windowW = modes[1].width
+        windowH = modes[1].height
+    end
+    local targetOS = love.system.getOS()
+    local fsType = (targetOS == "Windows") and "exclusive" or "desktop"
+    love.window.setMode(windowW, windowH, {
+        fullscreen = true,
+        fullscreentype = fsType,
+        display = primaryIndex,
+        vsync = 0,
+        centered = true
+    })
     ReinitBuffers(windowW, windowH)
     love.mouse.setRelativeMode(isMouseCaptured)
     Font_UI = love.graphics.newFont(14)
-
     local sceneState = Engine.Boot(slideAPI, "scene.json")
     if sceneState then
         manifest, NumSlides = sceneState.manifest, sceneState.NumSlides
         local b = sceneState.bounds
         B_MinX, B_MinY, B_MinZ, B_MaxX, B_MaxY, B_MaxZ = b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ
-
         TargetSlide = 0
         updateTargetSide()
         Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
         startX, startY, startZ, startYaw, startPitch = tX, tY, tZ, tYaw, tPitch
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
-
         InitSlideTextCache()
-
-        -- THE DEEP SPACE SWARM (1000 Asteroids)
         SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 50)
-        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 625)     -- The jagged Meteorites!
-        -- The Local Slide Sub-Swarms
+        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 625)
         SlidesInternal.CrystalCompanion(slideAPI, NumSlides, 25)
         SlidesInternal.SpawnHeroDonut(slideAPI, 1)
         SlidesInternal.SpawnChaosCluster(slideAPI, 2, 75)
@@ -399,13 +331,10 @@ function love.load()
         SlidesInternal.SpawnHeroDonut(slideAPI, 6)
         SlidesInternal.SpawnChaosCluster(slideAPI, 7, 20)
         SlidesInternal.SpawnDataSpikes(slideAPI, 300)
-        -- Crucial: Compile the branchless pools!
         BuildCollisionPools()
-
         UpdateCameraBasis()
     end
 end
-
 function love.keypressed(key)
     if not presentationMode and (key == "p" or key == "space") then
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
@@ -425,43 +354,28 @@ function love.keypressed(key)
         isMouseCaptured = not isMouseCaptured
         love.mouse.setRelativeMode(isMouseCaptured)
     elseif key == "c" then TriggerChaosField()
-    elseif key == "v" then TriggerVortex() -- The Spin Fix!
-    elseif key == "g" then TriggerGravity() -- The Implosion Fix!
+    elseif key == "v" then TriggerVortex()
+    elseif key == "g" then TriggerGravity()
     elseif key == "z" then
         isZenMode = not isZenMode
         if presentationMode then
-            -- 1. Breadcrumbs: Save exactly where we are right now
             startX, startY, startZ = Cam_X, Cam_Y, Cam_Z
-            startYaw, startPitch = Cam_Yaw, Cam_Pitch -- Typo fixed!
-            
-            -- 2. Toggle the Padding
+            startYaw, startPitch = Cam_Yaw, Cam_Pitch
             CAM_PADDING = isZenMode and 0 or 200
-            
-            -- 3. Reset the lerp timer so we glide to the new position
             lerpT, arrivalTimer = 0, 0
             isSettled = false
-            
-            -- 4. Calculate the new physical destination (0 or 200 padding)
             updateTargetSide()
-            
-            -- 5. Re-bake the font cache for 1:1 perfect crispness at the new destination
             InitSlideTextCache()
         end
     elseif key == "escape" then love.event.quit()
-    -- elseif key == "f" then
-        -- isFullscreen = not isFullscreen
-        -- love.window.setFullscreen(isFullscreen)
-        -- pendingResize = true
-        -- resizeTimer = 0.2
     end
 end
-
 function love.update(dt)
     if pendingResize then
         resizeTimer = resizeTimer - dt
         if resizeTimer <= 0 then
             ReinitBuffers(love.graphics.getWidth(), love.graphics.getHeight())
-            updateTargetSide() -- RECACLULATE PERFECT DISTANCE
+            updateTargetSide()
             if presentationMode and isSettled then
                 Cam_X, Cam_Y, Cam_Z = tX, tY, tZ
                 Cam_Yaw, Cam_Pitch = tYaw, tPitch
@@ -471,7 +385,6 @@ function love.update(dt)
         end
         return
     end
-
     if presentationMode and NumSlides > 0 then
         lerpT = min(1.0, lerpT + dt * 1)
         local easeT = 1 - (1 - lerpT) * (1 - lerpT)
@@ -497,7 +410,6 @@ function love.update(dt)
         if love.keyboard.isDown("d") then Cam_X, Cam_Z = Cam_X + Cam_RTX * s, Cam_Z + Cam_RTZ * s end
         if love.keyboard.isDown("e") then Cam_Y = Cam_Y - s end
         if love.keyboard.isDown("q") then Cam_Y = Cam_Y + s end
-
         local rotSpeed = 2 * dt
         if love.keyboard.isDown("left") then Cam_Yaw = Cam_Yaw - rotSpeed end
         if love.keyboard.isDown("right") then Cam_Yaw = Cam_Yaw + rotSpeed end
@@ -505,14 +417,12 @@ function love.update(dt)
         if love.keyboard.isDown("down") then Cam_Pitch = Cam_Pitch + rotSpeed end
         Cam_Pitch = max(-1.56, min(1.56, Cam_Pitch))
     end
-
     UpdateCameraBasis()
     Physics.IntegrateKinematics(dt)
     Physics.ResolveCollisions()
     local min_dt = 1 / 90
     if dt < min_dt then love.timer.sleep(min_dt - dt) end
 end
-
 function love.draw()
     if pendingResize then
         love.graphics.clear(0.05, 0.05, 0.05)
@@ -521,11 +431,10 @@ function love.draw()
     end
     Renderer.DrawFrame()
 end
-
 function love.resize(w, h)
-    pendingResize = true; resizeTimer = 0.2
+    pendingResize = true
+    resizeTimer = 0.2
 end
-
 function love.mousemoved(x, y, dx, dy)
     if isMouseCaptured then
         local sensitivity = 0.002
