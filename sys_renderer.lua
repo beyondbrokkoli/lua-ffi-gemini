@@ -57,6 +57,9 @@ local function Render3DScene()
     local crt_x, crt_z = Cam_RTX, Cam_RTZ
     local cup_x, cup_y, cup_z = Cam_UPX, Cam_UPY, Cam_UPZ
     for i = 0, NumSlides - 1 do
+        if isZenMode and i ~= TargetSlide then
+            goto continue_slides
+        end
         local id = Pool_Solid[i]
         local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
         local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z

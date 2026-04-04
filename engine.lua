@@ -28,9 +28,18 @@ function Engine.SyncGeometry()
     local keys = {}
     for k in pairs(Engine.manifest) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return tonumber(a) < tonumber(b) end)
+    local SLIDE_DEFAULTS = { w = 1600, h = 900, thickness = 40, color = 0xFFFFFFFF, yaw = 0.0, pitch = 0.0 }
     for i, original_key in ipairs(keys) do
-        local node = Engine.manifest[original_key]
         local id = i - 1
+        local raw_node = Engine.manifest[original_key]
+        local node = SlideGuard.deep_merge(SLIDE_DEFAULTS, raw_node)
+        if not node.x or not node.y or not node.z then
+            node.x = math.sin(id * 0.5) * 2000
+            node.y = id * -800
+            node.z = id * -10000
+            node.yaw = raw_node.yaw or (id * 0.2)
+            node.pitch = raw_node.pitch or (math.sin(id) * 0.2)
+        end
         clean_manifest[id] = node
         Engine.api.RegisterGeometry(id, node)
         count = count + 1
