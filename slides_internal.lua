@@ -296,4 +296,33 @@ function SlidesInternal.SpawnDataSpikes(api, count)
         api.Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 5.0
     end
 end
+-- Add these to slides_internal.lua
+function SlidesInternal.SpawnSatelliteRing(api, homeIdx, count)
+    local sx, sy, sz = api.Sphere_X[homeIdx], api.Sphere_Y[homeIdx], api.Sphere_Z[homeIdx]
+    local radius = api.Box_HW[homeIdx] + 150
+    for i = 1, count do
+        local angle = (i / count) * math.pi * 2
+        local lx, lz = math.cos(angle) * radius, math.sin(angle) * radius
+        local color = (i % 2 == 0) and 0xFF44CCFF or 0xFFFFFFFF
+        local tId = api.CreateTorus(sx + lx, sy, sz + lz, 15, 5, 12, 6, color, true)
+        api.Obj_HomeIdx[tId] = homeIdx
+        api.Obj_VelY[tId] = (math.random() - 0.5) * 100
+        api.Obj_RotSpeedYaw[tId] = 5
+    end
+end
+
+function SlidesInternal.SpawnGeometricStorm(api, homeIdx, count)
+    for i = 1, count do
+        local roll = math.random(1, 4)
+        if roll == 1 then SlidesInternal.SpawnBouncingCube(api, homeIdx)
+        elseif roll == 2 then SlidesInternal.SpawnPyramid(api, homeIdx)
+        elseif roll == 3 then SlidesInternal.SpawnDataSpikes(api, 1) -- Redirected to slide
+        else
+            local sx, sy, sz = api.Sphere_X[homeIdx], api.Sphere_Y[homeIdx], api.Sphere_Z[homeIdx]
+            local id = api.CreateTorus(sx, sy, sz, 10, 4, 8, 4, 0xFFFFFF00, true)
+            api.Obj_HomeIdx[id] = homeIdx
+            api.Obj_VelX[id] = (math.random() - 0.5) * 600
+        end
+    end
+end
 return SlidesInternal

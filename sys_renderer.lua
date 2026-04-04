@@ -207,36 +207,25 @@ local function RenderText()
     local i = TargetSlide
     local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
 
+    local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i] -- The gang's all here!
+    local cache = SlideTitles[i]
+    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
+    local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
 
-    --local bnx, bnz = Box_NX[i], Box_NZ[i]
-    --local cache = SlideTitles[i]
-    --local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
-    --local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
-    --local dot = (dist > 0) and ((camDX/dist) * bnx + (camDZ/dist) * bnz) or 0
-    --local abs_dot = abs(dot)
-    --if abs_dot < 0.707 then return end
-    --local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
-    --local tdx, tdz = (sx + bnx * t_off) - Cam_X, (sz + bnz * t_off) - Cam_Z
-    --local depth = tdx*Cam_FWX + camDY*Cam_FWY + tdz*Cam_FWZ
-    local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]; -- The gang's all here!
-    local cache = SlideTitles[i]; 
-    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz; 
-    local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ); 
-    
     -- 1. True 3D Dot Product (calculates visibility opacity based on real 3D angle)
-    local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0; 
-    local abs_dot = abs(dot); 
-    if abs_dot < 0.707 then return end; 
-    
-    local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset; 
-    
+    local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
+    local abs_dot = abs(dot)
+    if abs_dot < 0.707 then return end
+
+    local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
+
     -- 2. True 3D Spatial Offset (pushes the text out along the pitched normal vector)
-    local tdx = (sx + bnx * t_off) - Cam_X; 
-    local tdy = (sy + bny * t_off) - Cam_Y; 
-    local tdz = (sz + bnz * t_off) - Cam_Z; 
-    
+    local tdx = (sx + bnx * t_off) - Cam_X
+    local tdy = (sy + bny * t_off) - Cam_Y
+    local tdz = (sz + bnz * t_off) - Cam_Z
+
     -- 3. True 3D Depth Projection
-    local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ;
+    local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
 
 
     if depth < 10 or depth > 8000 then return end
@@ -254,45 +243,22 @@ local function RenderText()
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
 function Renderer.DrawFrame()
-    -- THE SPEEDRUNNER SKIP: If the camera is settled and the world is static,
-    -- skip the CPU software rasterizer entirely. 
-    local isStaticScene = (presentationMode and isSettled and arrivalTimer >= 0.3 and isZenMode)
-
-    if not isStaticScene then
-        -- CPU goes brrrrr
+    -- Only run the heavy CPU math if main.lua hasn't baked the snapshot yet
+    if not snapshotBaked then
         Render3DScene()
         RenderText()
         ScreenImage:replacePixels(ScreenBuffer)
     end
 
-    -- Reset the pen to White so we don't tint the snapshot!
     love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setBlendMode("replace")
+    love.graphics.draw(ScreenImage, 0, 0)
+    love.graphics.setBlendMode("alpha")
 
-    -- GPU just draws the last cached frame instantly
-    love.graphics.setBlendMode("replace")
-    love.graphics.draw(ScreenImage, 0, 0)
-    love.graphics.setBlendMode("alpha")
-    
-    love.graphics.setFont(Font_UI)
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
-    love.graphics.print(isMouseCaptured and "MOUSE LOCKED (J to unlock)" or "MOUSE FREE (J to lock)", 10, 30)
-    
-    if isStaticScene then
-        love.graphics.setColor(0, 1, 0, 1)
-        love.graphics.print("SNAPSHOT RENDER ACTIVE - CPU IDLE", 10, 50)
-    end
-end
-function OLD_Renderer_DrawFrame()
-    Render3DScene()
-    RenderText()
-    ScreenImage:replacePixels(ScreenBuffer)
-    love.graphics.setBlendMode("replace")
-    love.graphics.draw(ScreenImage, 0, 0)
-    love.graphics.setBlendMode("alpha")
     love.graphics.setFont(Font_UI)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
     love.graphics.print(isMouseCaptured and "MOUSE LOCKED (J to unlock)" or "MOUSE FREE (J to lock)", 10, 30)
 end
+
 return Renderer

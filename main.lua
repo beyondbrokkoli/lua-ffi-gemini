@@ -11,6 +11,7 @@ resizeTimer = 0
 isFullscreen = true
 isMouseCaptured = false
 isZenMode = false
+snapshotBaked = false
 local PRESENTATION_ZOOM = 1.0
 local CAM_PADDING = 200
 local function lerp(a, b, t) return a + (b - a) * t end
@@ -222,63 +223,26 @@ end
 local function updateTargetSide()
     local s = manifest[TargetSlide]
     if not s then return end
-
-    -- 1. Grab the TRUE 3D Normals
     local nx = Box_NX[TargetSlide] or 0
     local ny = Box_NY[TargetSlide] or 0
     local nz = Box_NZ[TargetSlide] or 1
-
     local distScale = math.max(s.h, s.w * (CANVAS_H / CANVAS_W))
     local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
-
-    -- 2. 3D GLIDE: Offset camera out along the 3D normal vector
     local fx, fy, fz = s.x + nx * dist, s.y + ny * dist, s.z + nz * dist
     local bx, by, bz = s.x - nx * dist, s.y - ny * dist, s.z - nz * dist
-
-    -- 3. Side Selection (Distance Squared)
     local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
     local dB = (bx - Cam_X)^2 + (by - Cam_Y)^2 + (bz - Cam_Z)^2
-
     local dx, dy, dz
     if dF <= dB then
-        -- Front side
         tX, tY, tZ = fx, fy, fz
         dx, dy, dz = s.x - fx, s.y - fy, s.z - fz
     else
-        -- Back side
         tX, tY, tZ = bx, by, bz
         dx, dy, dz = s.x - bx, s.y - by, s.z - bz
     end
-
-    -- 4. Calculate True Orbital LookAt Angles
     tYaw = math.atan2(dx, dz)
-
-    -- [DEFENSIVE LOCK] Force all slides to be vertical until full 3D OBB/Render logic is built
-    -- A true 3D pitch would be: math.atan2(dy, math.sqrt(dx*dx + dz*dz))
-    --tPitch = 0
-    -- [DEFENSIVE LOCK REMOVED] The geometry is stable. Unleash the true LookAt Pitch!
-    local distXZ = math.sqrt(dx*dx + dz*dz);
+    local distXZ = math.sqrt(dx*dx + dz*dz)
     tPitch = math.atan2(dy, distXZ)
-end
-local function OLD_updateTargetSide()
-    local s = manifest[TargetSlide]
-    if not s then return end
-    local nx, nz = Box_NX[TargetSlide], Box_NZ[TargetSlide]
-    local distScale = max(s.h, s.w * (CANVAS_H / CANVAS_W))
-    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
-    local fx, fy, fz = s.x + nx * dist, s.y, s.z + nz * dist
-    local bx, by, bz = s.x - nx * dist, s.y, s.z - nz * dist
-    local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
-    local dB = (bx - Cam_X)^2 + (by - Cam_Y)^2 + (bz - Cam_Z)^2
-    if dF <= dB then
-        tX, tY, tZ = fx, fy, fz
-        tYaw = atan2(s.x - fx, s.z - fz)
-    else
-        tX, tY, tZ = bx, by, bz
-        tYaw = atan2(s.x - bx, s.z - bz)
-    end
-    tPitch = 0
-    -- tPitch = s.pitch or 0
 end
 local function TriggerChaosField()
     for i = 0, Pool_Kinematic_Count - 1 do
@@ -350,7 +314,7 @@ function love.load()
         fullscreen = true,
         fullscreentype = fsType,
         display = primaryIndex,
-        vsync = 0,
+        vsync = 1,
         centered = true
     })
     ReinitBuffers(windowW, windowH)
@@ -366,18 +330,24 @@ function love.load()
         Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
         startX, startY, startZ, startYaw, startPitch = tX, tY, tZ, tYaw, tPitch
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
+        -- Replace the prop spawning section in love.load()
         InitSlideTextCache()
-        SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 50)
-        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 625)
-        SlidesInternal.CrystalCompanion(slideAPI, NumSlides, 25)
-        SlidesInternal.SpawnHeroDonut(slideAPI, 1)
-        SlidesInternal.SpawnChaosCluster(slideAPI, 2, 75)
-        SlidesInternal.SpawnParticleAccelerator(slideAPI, 3, 75)
-        -- SlidesInternal.SpawnChaosCluster(slideAPI, 4, 45)
-        -- SlidesInternal.SpawnParticleAccelerator(slideAPI, 5, 45)
-        -- SlidesInternal.SpawnHeroDonut(slideAPI, 6)
-        -- SlidesInternal.SpawnChaosCluster(slideAPI, 7, 20)
-        -- SlidesInternal.SpawnDataSpikes(slideAPI, 300)
+
+        -- Global Background
+        SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 40)
+        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 300)
+
+        -- Per-Slide Specialty Props
+        SlidesInternal.SpawnHeroDonut(slideAPI, 0)
+        SlidesInternal.SpawnSatelliteRing(slideAPI, 1, 12)
+        SlidesInternal.SpawnChaosCluster(slideAPI, 2, 40)
+        SlidesInternal.CrystalCompanion(slideAPI, NumSlides, 15) -- Crystals for all
+        SlidesInternal.SpawnGeometricStorm(slideAPI, 4, 30)
+        SlidesInternal.SpawnParticleAccelerator(slideAPI, 5, 60)
+        SlidesInternal.SpawnSatelliteRing(slideAPI, 6, 8)
+        SlidesInternal.SpawnHeroDonut(slideAPI, 7)
+        SlidesInternal.SpawnChaosCluster(slideAPI, 8, 25)
+        SlidesInternal.SpawnDataSpikes(slideAPI, 100) -- Deep space clutter
         BuildCollisionPools()
         UpdateCameraBasis()
     end
@@ -394,7 +364,9 @@ function love.keypressed(key)
         if key == "u" then Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch end
     elseif presentationMode and (key == "space" or key == "backspace") then
         startX, startY, startZ, startYaw, startPitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
-        lerpT, arrivalTimer = 0, 0
+        lerpT = isZenMode and 1.0 or 0
+        arrivalTimer = isZenMode and 0.3 or 0
+        snapshotBaked = false
         TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
         updateTargetSide()
     elseif key == "j" and not presentationMode then
@@ -406,18 +378,23 @@ function love.keypressed(key)
     elseif key == "z" then
         isZenMode = not isZenMode
         if presentationMode then
-            startX, startY, startZ = Cam_X, Cam_Y, Cam_Z
-            startYaw, startPitch = Cam_Yaw, Cam_Pitch
             CAM_PADDING = isZenMode and 0 or 200
-            lerpT, arrivalTimer = 0, 0
-            isSettled = false
             updateTargetSide()
+            if isSettled then
+                Cam_X, Cam_Y, Cam_Z = tX, tY, tZ
+                Cam_Yaw, Cam_Pitch = tYaw, tPitch
+                snapshotBaked = false
+            else
+                startX, startY, startZ = Cam_X, Cam_Y, Cam_Z
+                startYaw, startPitch = Cam_Yaw, Cam_Pitch
+            end
             InitSlideTextCache()
         end
     elseif key == "escape" then love.event.quit()
     end
 end
 function love.update(dt)
+    dt = math.min(dt, 0.033)
     if pendingResize then
         resizeTimer = resizeTimer - dt
         if resizeTimer <= 0 then
@@ -433,7 +410,7 @@ function love.update(dt)
         return
     end
     if presentationMode and NumSlides > 0 then
-        lerpT = min(1.0, lerpT + dt * 1)
+        lerpT = math.min(1.0, lerpT + dt * 1)
         local easeT = 1 - (1 - lerpT) * (1 - lerpT)
         if lerpT < 1.0 then
             arrivalTimer = 0
@@ -465,10 +442,21 @@ function love.update(dt)
         Cam_Pitch = max(-1.56, min(1.56, Cam_Pitch))
     end
     UpdateCameraBasis()
-    Physics.IntegrateKinematics(dt)
-    Physics.ResolveCollisions()
-    local min_dt = 1 / 90
-    if dt < min_dt then love.timer.sleep(min_dt - dt) end
+    if presentationMode and isSettled and isZenMode then
+        if arrivalTimer >= 0.3 then
+            if snapshotBaked then
+                love.timer.sleep(0.25)
+            end
+        else
+            snapshotBaked = false
+        end
+    else
+        snapshotBaked = false
+    end
+    if not isZenMode then
+        Physics.IntegrateKinematics(dt)
+        Physics.ResolveCollisions()
+    end
 end
 function love.draw()
     if pendingResize then
@@ -477,6 +465,9 @@ function love.draw()
         return
     end
     Renderer.DrawFrame()
+    if presentationMode and isSettled and isZenMode and arrivalTimer >= 0.3 then
+        snapshotBaked = true
+    end
 end
 function love.resize(w, h)
     pendingResize = true

@@ -1,54 +1,150 @@
 [
   {
     "x": 0, "y": 0, "z": 0,
-    "w": 1600, "h": 900, "yaw": 0.0, "pitch": 0.0, "thickness": 40, "color": 4294967295,
-    "text": "SLIDE 1: GROUND ZERO",
+    "w": 1600, "h": 900, "yaw": 0.0, "pitch": 0.0, "thickness": 60, "color": 4294967295,
+    "text": "01: THE NEW STANDARD",
     "content": [
+      "~ # ULTIMA PLATIN v3.0",
       "",
-      "~ # THE STARTING LINE",
+      "~ Welcome to the 3D-Matrix.",
+      "~ We have successfully escaped the pancake.",
       "",
-      "~ This slide is perfectly flat (0 pitch, 0 yaw).",
-      "~ Your camera should be looking straight forward.",
-      "~ Press Space to begin the ascent."
+      "~ Press Space to accelerate."
     ]
   },
   {
-    "x": 0, "y": 6000, "z": -12000,
-    "w": 1600, "h": 900, "yaw": 0.0, "pitch": 0.85, "thickness": 40, "color": 4294954052,
-    "text": "SLIDE 2: THE LAUNCHPAD",
+    "x": 4000, "y": 3000, "z": -6000,
+    "w": 1600, "h": 900, "yaw": -0.6, "pitch": 0.45, "thickness": 40, "color": 4294956800,
+    "text": "02: PITCH PERFECT",
     "content": [
+      "~ # 3D ROTATION TEST",
       "",
-      "~ # PITCH UP: 0.85 RADIANS (~48 DEGREES)",
+      "Horizontal Yawing | Vertical Pitching",
+      "Traditional slides are flat. | Ours are fully oriented.",
+      "OBB math is now active. | Collisions follow the tilt.",
       "",
-      "~ The camera should now be hovering above and looking down.",
-      "~ Notice how the text hologram perfectly hugs the angled surface.",
-      "~ Infinite crispness maintained."
+      "~ Observe the Torus satellites circling the rim."
     ]
   },
   {
-    "x": 0, "y": -8000, "z": -24000,
-    "w": 1600, "h": 900, "yaw": 0.0, "pitch": -1.45, "thickness": 40, "color": 4282361087,
-    "text": "SLIDE 3: THE FLOOR",
+    "x": -5000, "y": -2000, "z": -12000,
+    "w": 1600, "h": 900, "yaw": 0.8, "pitch": -0.3, "thickness": 80, "color": 4278255615,
+    "text": "03: DEEP MEMORY",
     "content": [
+      "~ # FFI MEMORY INJECTION",
       "",
-      "~ # PITCH DOWN: -1.45 RADIANS (~ -83 DEGREES)",
+      "~ We injected the missing Y-Axis components.",
       "",
-      "~ We are almost completely flat on our back.",
-      "~ The camera should be looking almost straight up at the ceiling.",
-      "~ Asteroids will completely clip through this until we fix the OBB physics!"
+      "Basis Vectors (FW/RT/UP) | Memory Pointers",
+      "Replaced 2D Guard logic. | Initialized FFI Buffers.",
+      "Singularities eradicated. | Object HomeIndices synced.",
+      "",
+      "~ The geometry is solid and persistent."
     ]
   },
   {
-    "x": 10000, "y": 2000, "z": -36000,
-    "w": 1600, "h": 900, "yaw": -0.65, "pitch": 0.45, "thickness": 40, "color": 4282361087,
-    "text": "SLIDE 4: THE DIAGONAL DRIFT",
+    "x": 10000, "y": 8000, "z": -18000,
+    "w": 1800, "h": 1000, "yaw": -1.2, "pitch": 0.8, "thickness": 40, "color": 4294902015,
+    "text": "04: THE OBB REVOLUTION",
     "content": [
+      "~ # THE OBB FINAL BOSS",
       "",
-      "~ # YAW: -0.65  |~ # PITCH: 0.45",
+      "~ Slaying the vertical-wall physics bug.",
       "",
-      "~ The ultimate test of the 3D matrix.",
-      "~ The slide is rotated to the side AND tilted backwards.",
-      "~ If the text lines up perfectly here, the render pipeline is flawless."
+      "Dot Product Projection | Normal Vector Resolution",
+      "Asteroids bounce off faces. | Objects slide on planes.",
+      "Dynamic Thickness | True 3D Deflection",
+      "",
+      "~ Slide 4 tilted 45 degrees on two axes."
+    ]
+  },
+  {
+    "x": -10000, "y": -8000, "z": -24000,
+    "w": 1600, "h": 900, "yaw": 0.5, "pitch": 1.4, "thickness": 50, "color": 4294944000,
+    "text": "05: TOP-DOWN VIEW",
+    "content": [
+      "~ # EXTREME PITCH LIMITS",
+      "",
+      "We are viewing this from above. | The Orbital Camera stays locked.",
+      "Gimbal lock was defeated. | LookAt vectors are stabilized.",
+      "Perspective is preserved. | Rendering is flawless.",
+      "",
+      "~ The Geometric Storm rages below."
+    ]
+  },
+  {
+    "x": 0, "y": 15000, "z": -32000,
+    "w": 2500, "h": 1200, "yaw": 0.0, "pitch": -1.2, "thickness": 100, "color": 4287273954,
+    "text": "06: SOFTWARE RASTERIZATION",
+    "content": [
+      "~ # PIXEL-LEVEL CONTROL",
+      "",
+      "~ We are not using the GPU for math.",
+      "",
+      "Triangle Bounding | Z-Buffer Depth Checking",
+      "Flat Shading Logic | Barycentric Calculation",
+      "CPU Rasterization | FFI Pointer Speed",
+      "",
+      "~ Hand-coded rendering pipeline."
+    ]
+  },
+  {
+    "x": -15000, "y": 0, "z": -40000,
+    "w": 1600, "h": 900, "yaw": 1.5, "pitch": 0.0, "thickness": 40, "color": 4294928820,
+    "text": "07: ZEN MODE REDUX",
+    "content": [
+      "~ # ZEN MODE OPTIMIZATION",
+      "",
+      "Snapshot Baking | Logic Culling",
+      "The software render sleeps. | The physics loop pauses.",
+      "Static frame caching. | CPU usage falls to 0%.",
+      "",
+      "~ Hit 'Z' to witness the 4-FPS hibernation."
+    ]
+  },
+  {
+    "x": 15000, "y": -5000, "z": -48000,
+    "w": 1600, "h": 900, "yaw": -0.8, "pitch": -0.2, "thickness": 40, "color": 4278255360,
+    "text": "08: THE CHOKEHOLD",
+    "content": [
+      "~ # TAMING THE VIRTUALBOX GPU",
+      "",
+      "~ llvmpipe was consuming 3 cores.",
+      "",
+      "VSync: On | Timer Sleep: 0.25s",
+      "Snapshot Baked Flag | Input Latency: Minimal",
+      "CPU: Cold | VM Stability: Peak",
+      "",
+      "~ We used a 10-frame buffer to avoid freezing."
+    ]
+  },
+  {
+    "x": -5000, "y": 10000, "z": -56000,
+    "w": 1600, "h": 900, "yaw": 0.3, "pitch": 0.7, "thickness": 40, "color": 4278096127,
+    "text": "09: DATA MINING",
+    "content": [
+      "~ # LUA-FFI GEMS",
+      "",
+      "Zero-overhead structs. | Direct memory access.",
+      "JIT-compiled hotspots. | Low-latency state machines.",
+      "No garbage collection. | Pure pointer arithmetic.",
+      "",
+      "~ The ultimate platform for Vibecoding."
+    ]
+  },
+  {
+    "x": 0, "y": 0, "z": -70000,
+    "w": 3000, "h": 1500, "yaw": 0.0, "pitch": 0.0, "thickness": 200, "color": 4292613180,
+    "text": "10: ASCENSION COMPLETE",
+    "content": [
+      "~ # PROJECT ULTIMA PLATIN",
+      "",
+      "~ You have navigated the 3D matrix.",
+      "~ You have survived the singularity.",
+      "~ You have tamed the emulated machine.",
+      "",
+      "~ Fly free into the void.",
+      "~ PRESS SPACE TO RESTART"
     ]
   }
 ]
