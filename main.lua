@@ -243,7 +243,7 @@ local function updateTargetSide()
     if dF <= dB then
         -- Front side
         tX, tY, tZ = fx, fy, fz
-        dx, dy, dz = s.x - fx, s.y - fy, s.z - fz 
+        dx, dy, dz = s.x - fx, s.y - fy, s.z - fz
     else
         -- Back side
         tX, tY, tZ = bx, by, bz
@@ -252,10 +252,13 @@ local function updateTargetSide()
 
     -- 4. Calculate True Orbital LookAt Angles
     tYaw = math.atan2(dx, dz)
-    
+
     -- [DEFENSIVE LOCK] Force all slides to be vertical until full 3D OBB/Render logic is built
     -- A true 3D pitch would be: math.atan2(dy, math.sqrt(dx*dx + dz*dz))
-    tPitch = 0 
+    --tPitch = 0
+    -- [DEFENSIVE LOCK REMOVED] The geometry is stable. Unleash the true LookAt Pitch!
+    local distXZ = math.sqrt(dx*dx + dz*dz);
+    tPitch = math.atan2(dy, distXZ)
 end
 local function OLD_updateTargetSide()
     local s = manifest[TargetSlide]
