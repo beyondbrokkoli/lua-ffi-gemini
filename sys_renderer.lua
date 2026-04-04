@@ -206,16 +206,39 @@ local function RenderText()
     if NumSlides == 0 or not presentationMode then return end
     local i = TargetSlide
     local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
-    local bnx, bnz = Box_NX[i], Box_NZ[i]
-    local cache = SlideTitles[i]
-    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
-    local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
-    local dot = (dist > 0) and ((camDX/dist) * bnx + (camDZ/dist) * bnz) or 0
-    local abs_dot = abs(dot)
-    if abs_dot < 0.707 then return end
-    local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
-    local tdx, tdz = (sx + bnx * t_off) - Cam_X, (sz + bnz * t_off) - Cam_Z
-    local depth = tdx*Cam_FWX + camDY*Cam_FWY + tdz*Cam_FWZ
+
+
+    --local bnx, bnz = Box_NX[i], Box_NZ[i]
+    --local cache = SlideTitles[i]
+    --local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
+    --local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
+    --local dot = (dist > 0) and ((camDX/dist) * bnx + (camDZ/dist) * bnz) or 0
+    --local abs_dot = abs(dot)
+    --if abs_dot < 0.707 then return end
+    --local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
+    --local tdx, tdz = (sx + bnx * t_off) - Cam_X, (sz + bnz * t_off) - Cam_Z
+    --local depth = tdx*Cam_FWX + camDY*Cam_FWY + tdz*Cam_FWZ
+    local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]; -- The gang's all here!
+    local cache = SlideTitles[i]; 
+    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz; 
+    local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ); 
+    
+    -- 1. True 3D Dot Product (calculates visibility opacity based on real 3D angle)
+    local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0; 
+    local abs_dot = abs(dot); 
+    if abs_dot < 0.707 then return end; 
+    
+    local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset; 
+    
+    -- 2. True 3D Spatial Offset (pushes the text out along the pitched normal vector)
+    local tdx = (sx + bnx * t_off) - Cam_X; 
+    local tdy = (sy + bny * t_off) - Cam_Y; 
+    local tdz = (sz + bnz * t_off) - Cam_Z; 
+    
+    -- 3. True 3D Depth Projection
+    local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ;
+
+
     if depth < 10 or depth > 8000 then return end
     local alpha_close = max(0, min(1, (depth-100)/300))
     local alpha_angle = min(1, (abs_dot-0.707)*5)

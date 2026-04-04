@@ -1,0 +1,65 @@
+[
+  {
+    "x": 0, "y": 0, "z": -5000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4291585791,
+    "text": "ULTIMA PLATIN",
+    "content": [
+      "",
+      "",
+      "~ # THE DEMOSCENE PRESENTATION ENGINE",
+      "",
+      "~ Pure LuaJIT. Zero Dependencies. 100% Custom Software Rasterizer.",
+      "~ Z-Buffered Text Injection with AST-based Markdown Layouts."
+    ]
+  },
+  {
+    "x": 2500, "y": 500, "z": -12000,
+    "w": 1600, "h": 900, "yaw": -0.35, "thickness": 40, "color": 4278239231,
+    "text": "SYSTEM ARCHITECTURE",
+    "content": [
+      "# FRONTEND PIPELINE | # BACKEND RASTERIZER",
+      "• Markdown-style AST Parser | • Flat-shaded Software Rendering",
+      "• Dynamic Texture Baking | • FFI C-Struct Memory Pools",
+      "• Automatic Text Wrapping | • Branchless Loop Splitting",
+      "",
+      "# THE WORKFLOW",
+      "The engine reads a JSON manifest, allocates contiguous C-memory blocks, and generates thousands of unindexed vertices before booting the main loop. Text is blitted directly into the depth-buffer for absolute sub-pixel precision."
+    ]
+  },
+  {
+    "x": -2500, "y": -500, "z": -19000,
+    "w": 1600, "h": 900, "yaw": 0.35, "thickness": 40, "color": 4281589632,
+    "text": "STRESS TEST",
+    "content": [
+      "~ # PHYSICS | ~ # MEMORY | ~ # LIMITS",
+      "~ Euler Integration | ~ Cache Locality | ~ Auto-Truncation",
+      "",
+      "Integrating kinematics across thousands of floating icosahedrons and bipyramids using implicit Euler steps. | Zero garbage collection overhead. Arrays of Structures keep the CPU cache lines perfectly warm. | This final column contains an absurd amount of text specifically engineered to violently trigger the engine's automated vertical truncation protocol. Once the text reaches the bottom twelve percent of the virtual slide boundary, it will be mercilessly chopped off and replaced with an ellipsis, proving the integer layout math is completely flawless."
+    ]
+  },
+  {
+    "x": 0, "y": 1000, "z": -26000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294954052,
+    "text": "ZEN MODE",
+    "content": [
+      "",
+      "~ # 1:1 PIXEL PERFECTION",
+      "",
+      "~ Pressing 'Z' instantly drops the 3D pipeline overhead and glides the camera forward.",
+      "~ The text cache dynamically rebuilds for the exact target distance.",
+      "~ The result is infinite crispness with zero dropped pixels."
+    ]
+  },
+  {
+    "x": 0, "y": -500, "z": -33000,
+    "w": 1600, "h": 900, "yaw": 3.14159, "thickness": 40, "color": 4294927974,
+    "text": "TWO-SIDED LIGHTING",
+    "content": [
+      "~ # 180 DEGREE INVERSION",
+      "",
+      "You are currently looking at the exact back of this slide.",
+      "",
+      "Because of the deterministic pass-splitting architecture, the engine overrides the normal vector logic exclusively for the static slides. Even facing away from the global light source, the black text remains perfectly legible."
+    ]
+  }
+]

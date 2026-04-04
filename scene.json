@@ -1,65 +1,54 @@
 [
   {
-    "x": 0, "y": 0, "z": -5000,
-    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4291585791,
-    "text": "ULTIMA PLATIN",
+    "x": 0, "y": 0, "z": 0,
+    "w": 1600, "h": 900, "yaw": 0.0, "pitch": 0.0, "thickness": 40, "color": 4294967295,
+    "text": "SLIDE 1: GROUND ZERO",
     "content": [
       "",
+      "~ # THE STARTING LINE",
       "",
-      "~ # THE DEMOSCENE PRESENTATION ENGINE",
-      "",
-      "~ Pure LuaJIT. Zero Dependencies. 100% Custom Software Rasterizer.",
-      "~ Z-Buffered Text Injection with AST-based Markdown Layouts."
+      "~ This slide is perfectly flat (0 pitch, 0 yaw).",
+      "~ Your camera should be looking straight forward.",
+      "~ Press Space to begin the ascent."
     ]
   },
   {
-    "x": 2500, "y": 500, "z": -12000,
-    "w": 1600, "h": 900, "yaw": -0.35, "thickness": 40, "color": 4278239231,
-    "text": "SYSTEM ARCHITECTURE",
+    "x": 0, "y": 6000, "z": -12000,
+    "w": 1600, "h": 900, "yaw": 0.0, "pitch": 0.85, "thickness": 40, "color": 4294954052,
+    "text": "SLIDE 2: THE LAUNCHPAD",
     "content": [
-      "# FRONTEND PIPELINE | # BACKEND RASTERIZER",
-      "• Markdown-style AST Parser | • Flat-shaded Software Rendering",
-      "• Dynamic Texture Baking | • FFI C-Struct Memory Pools",
-      "• Automatic Text Wrapping | • Branchless Loop Splitting",
       "",
-      "# THE WORKFLOW",
-      "The engine reads a JSON manifest, allocates contiguous C-memory blocks, and generates thousands of unindexed vertices before booting the main loop. Text is blitted directly into the depth-buffer for absolute sub-pixel precision."
+      "~ # PITCH UP: 0.85 RADIANS (~48 DEGREES)",
+      "",
+      "~ The camera should now be hovering above and looking down.",
+      "~ Notice how the text hologram perfectly hugs the angled surface.",
+      "~ Infinite crispness maintained."
     ]
   },
   {
-    "x": -2500, "y": -500, "z": -19000,
-    "w": 1600, "h": 900, "yaw": 0.35, "thickness": 40, "color": 4281589632,
-    "text": "STRESS TEST",
+    "x": 0, "y": -8000, "z": -24000,
+    "w": 1600, "h": 900, "yaw": 0.0, "pitch": -1.45, "thickness": 40, "color": 4282361087,
+    "text": "SLIDE 3: THE FLOOR",
     "content": [
-      "~ # PHYSICS | ~ # MEMORY | ~ # LIMITS",
-      "~ Euler Integration | ~ Cache Locality | ~ Auto-Truncation",
       "",
-      "Integrating kinematics across thousands of floating icosahedrons and bipyramids using implicit Euler steps. | Zero garbage collection overhead. Arrays of Structures keep the CPU cache lines perfectly warm. | This final column contains an absurd amount of text specifically engineered to violently trigger the engine's automated vertical truncation protocol. Once the text reaches the bottom twelve percent of the virtual slide boundary, it will be mercilessly chopped off and replaced with an ellipsis, proving the integer layout math is completely flawless."
+      "~ # PITCH DOWN: -1.45 RADIANS (~ -83 DEGREES)",
+      "",
+      "~ We are almost completely flat on our back.",
+      "~ The camera should be looking almost straight up at the ceiling.",
+      "~ Asteroids will completely clip through this until we fix the OBB physics!"
     ]
   },
   {
-    "x": 0, "y": 1000, "z": -26000,
-    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294954052,
-    "text": "ZEN MODE",
+    "x": 10000, "y": 2000, "z": -36000,
+    "w": 1600, "h": 900, "yaw": -0.65, "pitch": 0.45, "thickness": 40, "color": 4282361087,
+    "text": "SLIDE 4: THE DIAGONAL DRIFT",
     "content": [
       "",
-      "~ # 1:1 PIXEL PERFECTION",
+      "~ # YAW: -0.65  |  PITCH: 0.45",
       "",
-      "~ Pressing 'Z' instantly drops the 3D pipeline overhead and glides the camera forward.",
-      "~ The text cache dynamically rebuilds for the exact target distance.",
-      "~ The result is infinite crispness with zero dropped pixels."
-    ]
-  },
-  {
-    "x": 0, "y": -500, "z": -33000,
-    "w": 1600, "h": 900, "yaw": 3.14159, "thickness": 40, "color": 4294927974,
-    "text": "TWO-SIDED LIGHTING",
-    "content": [
-      "~ # 180 DEGREE INVERSION",
-      "",
-      "You are currently looking at the exact back of this slide.",
-      "",
-      "Because of the deterministic pass-splitting architecture, the engine overrides the normal vector logic exclusively for the static slides. Even facing away from the global light source, the black text remains perfectly legible."
+      "~ The ultimate test of the 3D matrix.",
+      "~ The slide is rotated to the side AND tilted backwards.",
+      "~ If the text lines up perfectly here, the render pipeline is flawless."
     ]
   }
 ]

@@ -54,6 +54,8 @@ function SlideGuard.ProtectAPI(raw_api) local guarded_api = {}
 
             local angle = data.yaw or 0
             local pitch = data.pitch or 0
+            -- [DEFENSIVE CLAMP] Prevent Gimbal Lock singularity (approx +/- 89.3 degrees)
+            pitch = math.max(-1.56, math.min(1.56, pitch))
 
             raw_api.Box_CosA[id] = math.cos(angle)
             raw_api.Box_SinA[id] = math.sin(angle)
