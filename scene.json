@@ -44,7 +44,7 @@
     "text": "SLIDE 4: THE DIAGONAL DRIFT",
     "content": [
       "",
-      "~ # YAW: -0.65  |  PITCH: 0.45",
+      "~ # YAW: -0.65  |~ # PITCH: 0.45",
       "",
       "~ The ultimate test of the 3D matrix.",
       "~ The slide is rotated to the side AND tilted backwards.",

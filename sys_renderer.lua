@@ -254,6 +254,36 @@ local function RenderText()
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
 function Renderer.DrawFrame()
+    -- THE SPEEDRUNNER SKIP: If the camera is settled and the world is static,
+    -- skip the CPU software rasterizer entirely. 
+    local isStaticScene = (presentationMode and isSettled and arrivalTimer >= 0.3 and isZenMode)
+
+    if not isStaticScene then
+        -- CPU goes brrrrr
+        Render3DScene()
+        RenderText()
+        ScreenImage:replacePixels(ScreenBuffer)
+    end
+
+    -- Reset the pen to White so we don't tint the snapshot!
+    love.graphics.setColor(1, 1, 1, 1)
+
+    -- GPU just draws the last cached frame instantly
+    love.graphics.setBlendMode("replace")
+    love.graphics.draw(ScreenImage, 0, 0)
+    love.graphics.setBlendMode("alpha")
+    
+    love.graphics.setFont(Font_UI)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
+    love.graphics.print(isMouseCaptured and "MOUSE LOCKED (J to unlock)" or "MOUSE FREE (J to lock)", 10, 30)
+    
+    if isStaticScene then
+        love.graphics.setColor(0, 1, 0, 1)
+        love.graphics.print("SNAPSHOT RENDER ACTIVE - CPU IDLE", 10, 50)
+    end
+end
+function OLD_Renderer_DrawFrame()
     Render3DScene()
     RenderText()
     ScreenImage:replacePixels(ScreenBuffer)
