@@ -1,0 +1,42 @@
+[
+  {
+    "x": 0, "y": 0, "z": -10000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4278222976,
+    "text": "THE FRONT DOOR",
+    "content": [
+      "~ # FORWARD TRAJECTORY",
+      "",
+      "This is a standard slide facing the camera. When you press Space, the lerp pathing will pull the camera straight THROUGH the geometry of this slide to reach the next one.",
+      "",
+      "~ Because the Data Spikes and Asteroids share the same Z-Buffer as the blitted text, watch how the floating objects gracefully clip through the black font as you move!"
+    ]
+  },
+  {
+    "x": 0, "y": 0, "z": -15000,
+    "w": 1600, "h": 900, "yaw": 3.14159, "thickness": 40, "color": 4282703103,
+    "text": "THE REVERSE SIDE",
+    "content": [
+      "~ # 180 DEGREE INVERSION",
+      "",
+      "You are now looking backward. The camera flew through the first slide.",
+      "If you look behind you (or press Backspace), you will see the back of Slide 1.",
+      "",
+      "~ # THE LIGHTING HACK LIVES",
+      "",
+      "Because of the `abs(dot_val)` hack in Render Pass 1, this slide is perfectly lit even though its normal vector is pointing directly away from the sun source. The engine architecture holds firm."
+    ]
+  },
+  {
+    "x": 4000, "y": -500, "z": -12500,
+    "w": 1600, "h": 900, "yaw": -1.5707, "thickness": 40, "color": 4290772992,
+    "text": "THE PERPENDICULAR",
+    "content": [
+      "~ # THE HEADLAMP TEST",
+      "",
+      "This slide is rotated exactly 90 degrees.",
+      "To the global sun vector, the surface area is zero. It should be pitch black.",
+      "",
+      "However, the `headlamp` dot product calculation compares the slide's normal vector to the Camera's Forward Vector (`cfw`). By merely looking at this slide, your camera illuminates it, proving the Two-Sided Headlamp shader works from every possible angle."
+    ]
+  }
+]

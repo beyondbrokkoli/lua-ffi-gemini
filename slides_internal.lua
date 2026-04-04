@@ -318,4 +318,59 @@ function SlidesInternal.SpawnSpaceAsteroids(api, count)
         api.Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 1.5
     end
 end
+function SlidesInternal.SpawnDataSpikes(api, count)
+    local colors = {0xFF00FFFF, 0xFFFF00FF, 0xFF00FF88, 0xFFFFFFFF} -- Cyan, Magenta, Neon Green, White
+    
+    for i = 1, count do
+        local h = 40 + math.random() * 60 -- Height of the spike
+        local w = h * 0.3                 -- Width (sharp and narrow)
+        
+        local x = (math.random() - 0.5) * 16000
+        local y = (math.random() - 0.5) * 8000
+        local z = -2000 + math.random() * 17000
+        
+        local id = api.CreateTriObject(x, y, z, 6, 8, h, true, true)
+        local vStart = api.Obj_VertStart[id]
+        local tStart = api.Obj_TriStart[id]
+        
+        -- The 6 Vertices of a Bi-pyramid (Octahedron)
+        local verts = {
+            {0, h, 0},   -- 0: Top Point
+            {0, -h, 0},  -- 1: Bottom Point
+            {w, 0, w},   -- 2: Equator 1
+            {w, 0, -w},  -- 3: Equator 2
+            {-w, 0, -w}, -- 4: Equator 3
+            {-w, 0, w}   -- 5: Equator 4
+        }
+        
+        for j, v in ipairs(verts) do
+            local vIdx = vStart + (j - 1)
+            api.Vert_LX[vIdx], api.Vert_LY[vIdx], api.Vert_LZ[vIdx] = v[1], v[2], v[3]
+        end
+        
+        -- The 8 Triangles
+        local indices = {
+            0,2,3,  0,3,4,  0,4,5,  0,5,2, -- Top half
+            1,3,2,  1,4,3,  1,5,4,  1,2,5  -- Bottom half
+        }
+        
+        local color = colors[math.random(#colors)]
+        for j = 1, #indices, 3 do
+            local tIdx = tStart + math.floor((j-1)/3)
+            api.Tri_V1[tIdx] = indices[j] + vStart
+            api.Tri_V2[tIdx] = indices[j+1] + vStart
+            api.Tri_V3[tIdx] = indices[j+2] + vStart
+            api.Tri_Color[tIdx] = color
+        end
+        
+        api.Obj_HomeIdx[id] = -1
+        api.Obj_VelX[id] = (math.random() - 0.5) * 150
+        api.Obj_VelY[id] = (math.random() - 0.5) * 150
+        api.Obj_VelZ[id] = (math.random() - 0.5) * 150
+        
+        -- Make them spin rapidly like drill bits
+        api.Obj_RotSpeedYaw[id] = (math.random() - 0.5) * 5.0
+        api.Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 5.0
+    end
+end
 return SlidesInternal

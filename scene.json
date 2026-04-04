@@ -1,151 +1,65 @@
 [
   {
-    "x": 0, "y": 0, "z": -30000,
-    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4282703103,
-    "text": "WELCOME, USER.",
+    "x": 0, "y": 0, "z": -5000,
+    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4291585791,
+    "text": "ULTIMA PLATIN",
     "content": [
-      "# Initializing... ULTIMA PLATIN Engine",
       "",
-      "Experience pure LuaJIT horsepower.",
-      "A custom 3D software rasterizer,",
-      "built entirely from scratch on the CPU.",
       "",
-      "Zero GPU acceleration. Just raw math."
+      "~ # THE DEMOSCENE PRESENTATION ENGINE",
+      "",
+      "~ Pure LuaJIT. Zero Dependencies. 100% Custom Software Rasterizer.",
+      "~ Z-Buffered Text Injection with AST-based Markdown Layouts."
     ]
   },
   {
-    "x": 250, "y": 50, "z": -33000,
-    "w": 1600, "h": 900, "yaw": 0.3, "thickness": 40, "color": 4294959000,
-    "text": "CONTROLS",
+    "x": 2500, "y": 500, "z": -12000,
+    "w": 1600, "h": 900, "yaw": -0.35, "thickness": 40, "color": 4278239231,
+    "text": "SYSTEM ARCHITECTURE",
     "content": [
+      "# FRONTEND PIPELINE | # BACKEND RASTERIZER",
+      "• Markdown-style AST Parser | • Flat-shaded Software Rendering",
+      "• Dynamic Texture Baking | • FFI C-Struct Memory Pools",
+      "• Automatic Text Wrapping | • Branchless Loop Splitting",
       "",
-      "WASD/QE - Move Camera | C - Chaos Field",
-      "Arrows - Pitch & Yaw | V - Vortex Spin",
-      "J - Toggle Mouse Lock | G - Gravity Well",
-      "Space - Next Slide | Esc - Quick Quit",
-      "Backspace - Prev Slide",
-      "I - Free Cam",
-      "U - Return to Free Cam"
+      "# THE WORKFLOW",
+      "The engine reads a JSON manifest, allocates contiguous C-memory blocks, and generates thousands of unindexed vertices before booting the main loop. Text is blitted directly into the depth-buffer for absolute sub-pixel precision."
     ]
   },
   {
-    "x": -250, "y": -50, "z": -36000,
-    "w": 1600, "h": 900, "yaw": -0.3, "thickness": 40, "color": 4294959200,
-    "text": "FEATURES",
+    "x": -2500, "y": -500, "z": -19000,
+    "w": 1600, "h": 900, "yaw": 0.35, "thickness": 40, "color": 4281589632,
+    "text": "STRESS TEST",
     "content": [
-      "Structure of Arrays",
-      "Contiguous C-Memory",
-      "Linear Access",
-      "Optimal Cache Locality",
-      "Blistering Speed"
+      "~ # PHYSICS | ~ # MEMORY | ~ # LIMITS",
+      "~ Euler Integration | ~ Cache Locality | ~ Auto-Truncation",
+      "",
+      "Integrating kinematics across thousands of floating icosahedrons and bipyramids using implicit Euler steps. | Zero garbage collection overhead. Arrays of Structures keep the CPU cache lines perfectly warm. | This final column contains an absurd amount of text specifically engineered to violently trigger the engine's automated vertical truncation protocol. Once the text reaches the bottom twelve percent of the virtual slide boundary, it will be mercilessly chopped off and replaced with an ellipsis, proving the integer layout math is completely flawless."
     ]
   },
   {
-    "x": 0, "y": 150, "z": -39000,
-    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294959400,
-    "text": "PHASE 1",
+    "x": 0, "y": 1000, "z": -26000,
+    "w": 1600, "h": 900, "yaw": 0.0, "pitch": 0.15, "thickness": 40, "color": 4294954052,
+    "text": "ZEN MODE",
     "content": [
-      "# sys_memory.lua",
       "",
-      "Raw C-Structs are allocated via FFI.",
-      "The MAX_OBJS buffer is initialized.",
-      "Data layout is finalized in system RAM."
+      "~ # 1:1 PIXEL PERFECTION",
+      "",
+      "~ Pressing 'Z' instantly drops the 3D pipeline overhead and glides the camera forward.",
+      "~ The text cache dynamically rebuilds for the exact target distance.",
+      "~ The result is infinite crispness with zero dropped pixels."
     ]
   },
   {
-    "x": 150, "y": -200, "z": -42000,
-    "w": 1600, "h": 900, "yaw": 0.2, "thickness": 40, "color": 4294959600,
-    "text": "PHASE 2",
+    "x": 0, "y": -500, "z": -33000,
+    "w": 1600, "h": 900, "yaw": 3.14159, "pitch": 0.0, "thickness": 40, "color": 4294927974,
+    "text": "TWO-SIDED LIGHTING",
     "content": [
-      "# engine.lua",
+      "~ # 180 DEGREE INVERSION",
       "",
-      "Reads and parses the JSON payload.",
-      "Builds the 3D bounding box constraints.",
-      "Calculates optimal pixel projection scales."
-    ]
-  },
-  {
-    "x": -150, "y": 100, "z": -45000,
-    "w": 1600, "h": 900, "yaw": -0.2, "thickness": 40, "color": 4294959800,
-    "text": "PHASE 3",
-    "content": [
-      "# slides_internal.lua",
+      "You are currently looking at the exact back of this slide.",
       "",
-      "Generates thousands of raw vertices.",
-      "Pushes math directly into Local X/Y/Z buffers.",
-      "Bakes unindexed triangles into memory."
-    ]
-  },
-  {
-    "x": 0, "y": -250, "z": -48000,
-    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4294960000,
-    "text": "PHASE 4",
-    "content": [
-      "# love.update(dt)",
-      "",
-      "The simulation heartbeat.",
-      "Calculates cinematic camera paths (lerp).",
-      "Polls input state for physics triggers."
-    ]
-  },
-  {
-    "x": 300, "y": 0, "z": -51000,
-    "w": 1600, "h": 900, "yaw": 0.5, "thickness": 40, "color": 4294960200,
-    "text": "PHASE 5: PHYSICS",
-    "content": [
-      "# sys_physics.lua",
-      "",
-      "Iterates the SoA kinematic buffers.",
-      "Updates spatial positions via velocity.",
-      "Recalculates Basis Vectors (FW/RT/UP)."
-    ]
-  },
-  {
-    "x": -300, "y": 0, "z": -54000,
-    "w": 1600, "h": 900, "yaw": -0.5, "thickness": 40, "color": 4294960400,
-    "text": "PHASE 6: SETUP",
-    "content": [
-      "# sys_renderer.lua",
-      "",
-      "Wipes the 32-bit ScreenPtr pixel buffer.",
-      "Clears the ZBuffer depth array to infinity.",
-      "Collects objects for view frustum culling."
-    ]
-  },
-  {
-    "x": 0, "y": 100, "z": -57000,
-    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4282703103,
-    "text": "PHASE 7: TRANSFORM",
-    "content": [
-      "# The Software Vertex Shader",
-      "",
-      "Local -> World -> View Projection mapping.",
-      "Executes Back-face Culling logic.",
-      "Calculates Flat Shading via Dot Products."
-    ]
-  },
-  {
-    "x": 150, "y": -200, "z": -60000,
-    "w": 1600, "h": 900, "yaw": 0.2, "thickness": 40, "color": 4294959000,
-    "text": "PHASE 8",
-    "content": [
-      "# The Core Math Engine",
-      "",
-      "Sorts visible triangles by Y-coordinate.",
-      "Interpolates edges across X and Z axes.",
-      "Executes per-pixel Z-Buffer depth checks."
-    ]
-  },
-  {
-    "x": 0, "y": 0, "z": -63000,
-    "w": 1600, "h": 900, "yaw": 0.0, "thickness": 40, "color": 4282703103,
-    "text": "FONT",
-    "content": [
-      "# Dynamic 2D in 3D Space",
-      "",
-      "Mathematically blends ImageData arrays.",
-      "Injects text directly into the depth frame.",
-      "Flips the final buffer to the display."
+      "Because of the deterministic pass-splitting architecture, the engine overrides the normal vector logic exclusively for the static slides. Even facing away from the global light source, the black text remains perfectly legible."
     ]
   }
 ]

@@ -13,6 +13,7 @@ pendingResize = false
 resizeTimer = 0
 isFullscreen = true
 isMouseCaptured = false
+isZenMode = false -- THE NEW GLOBAL
 -- 1.0 = Perfect Fullscreen Fit. 1.5 = Asteroid View (Zoomed out)
 local PRESENTATION_ZOOM = 1.0
 local CAM_PADDING = 200 -- Set to 200 later if you want a physical distance buffer
@@ -22,99 +23,124 @@ local function lerpAngle(a, b, t)
     local diff = (b - a + pi) % (pi * 2) - pi
     return a + diff * t
 end
+local function ParseSlideLine(rawText, fonts)
+    local pipePos = rawText:find("|")
+    if pipePos then
+        local leftStr = rawText:sub(1, pipePos - 1):match("^%s*(.-)%s*$")
+        local rightStr = rawText:sub(pipePos + 1):match("^%s*(.-)%s*$")
+        local columns = ParseSlideLine(leftStr, fonts)
+        local rightCols = ParseSlideLine(rightStr, fonts)
+        for _, col in ipairs(rightCols) do table.insert(columns, col) end
+        return columns
+    end
+    
+    local cleanText = rawText
+    local currentFont = fonts.body
+    local currentAlign = "left"
+
+    -- 1. Check for Centering signal (~ )
+    if cleanText:match("^~%s+") then
+        cleanText = cleanText:gsub("^~%s+", "")
+        currentAlign = "center"
+    end
+    
+    -- 2. Check for Header signal (# )
+    if cleanText:match("^#%s+") then
+        cleanText = cleanText:gsub("^#%s+", "")
+        currentFont = fonts.head
+    end
+    
+    return { { text = cleanText, font = currentFont, align = currentAlign } }
+end
+
 local function InitSlideTextCache()
     SlideTitles = {}
     for i = 0, NumSlides - 1 do
         local node = manifest[i]
         local titleText = (node and node.text) or ("SLIDE " .. tostring(i + 1))
-
-        -- THEATER SEAT: Find the distance where text hits 1:1 crispness
         local w, h = Box_HW[i] * 2, Box_HH[i] * 2
-        -- 1. Calculate the exact same distance the camera will park at
-        local distScale = max(h, w * (CANVAS_H / CANVAS_W));
-        local optDist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING;
-        local text_depth = optDist - (Box_HT[i] + 5);
-
-       -- 2. Calculate the exact pixel-to-world ratio at that depth
-       local optimal_scale = (Cam_FOV / text_depth);
-
-        -- 3. Make font sizes a PERCENTAGE of the physical slide height (h)
-        -- 0.15 = 15% of the slide height. Adjust these decimals to design your layout!
-        local szTitle = max(8, floor((h * 0.15) * optimal_scale));
-        local szHead  = max(8, floor((h * 0.08) * optimal_scale));
-        local szBody  = max(8, floor((h * 0.05) * optimal_scale));
-        -- Shifted down: Title is now 9%, Subheader is 5%, Body is 3%
-        -- local szTitle = max(8, floor((h * 0.09) * optimal_scale))
-        -- local szHead  = max(8, floor((h * 0.05) * optimal_scale))
-        -- local szBody  = max(8, floor((h * 0.03) * optimal_scale))
-        -- Rasterize Main Title
-        local fTitle = love.graphics.newFont(szTitle)
-        love.graphics.setFont(fTitle)
-        local tw, th = fTitle:getWidth(titleText), fTitle:getHeight()
-        local cTitle = love.graphics.newCanvas(tw, th)
-        love.graphics.setCanvas(cTitle); love.graphics.clear(0,0,0,0)
-        love.graphics.setColor(1,1,1,1); love.graphics.print(titleText, 0, 0)
-        love.graphics.setCanvas()
-
-        local iTitle = cTitle:newImageData()
-        SlideTitles[i] = {
-            ptr = ffi.cast("uint32_t*", iTitle:getPointer()),
-            w = tw, h = th, _keepAlive = iTitle,
-            lines = {}, opt_scale = optimal_scale,
-            text_z_offset = (Box_HT[i] + 5)
+        
+        local distScale = max(h, w * (CANVAS_H / CANVAS_W))
+        local optDist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
+        local text_depth = optDist - (Box_HT[i] + 5)
+        local optimal_scale = (Cam_FOV / text_depth)
+        
+        local fonts = {
+            title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))), -- Reduced to 0.10!
+            head = love.graphics.newFont(max(8, floor((h * 0.08) * optimal_scale))),
+            body = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
         }
-
+        
+        local virtW = max(1, floor(w * optimal_scale))
+        local virtH = max(1, floor(h * optimal_scale))
+        local giantCanvas = love.graphics.newCanvas(virtW, virtH)
+        
+        love.graphics.setCanvas(giantCanvas)
+        love.graphics.clear(0, 0, 0, 0)
+        love.graphics.setColor(1, 1, 1, 1)
+        
+        local currentY = floor(virtH * 0.05)
+        local paddingX = floor(virtW * 0.05)
+        local maxTextWidth = virtW - (paddingX * 2)
+        local bottomLimit = virtH - floor(virtH * 0.12) -- 5% bottom padding
+        
+        love.graphics.setFont(fonts.title)
+        love.graphics.printf(titleText, paddingX, currentY, maxTextWidth, "center")
+        currentY = currentY + fonts.title:getHeight() + floor(virtH * 0.02)
+        
         if node and node.content then
-            local fB = love.graphics.newFont(szBody)
-            local fHead = love.graphics.newFont(szHead) -- Grab our header size!
-
             for _, s in ipairs(node.content) do
                 if s ~= "" then
-                    local isHead = (s:sub(1, 2) == "# ")
-                    local rawText = isHead and s:sub(3) or s
-                    local currentFont = isHead and fHead or fB
+                    local columns = ParseSlideLine(s, fonts)
+                    local numCols = #columns
+                    local colWidth = floor(maxTextWidth / numCols)
+                    local maxRowHeight = 0
+                    
+                    for colIdx, colData in ipairs(columns) do
+                        love.graphics.setFont(colData.font)
+                        local xOffset = paddingX + ((colIdx - 1) * colWidth)
+                        local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0)
+                        
+                        local _, wrappedLines = colData.font:getWrap(colData.text, colPrintWidth)
+                        local lineY = currentY
+                        local colHeight = 0
+                        
+                        -- The Truncation Loop
+                        for lIdx, lineStr in ipairs(wrappedLines) do
+                            if (lineY + colData.font:getHeight()) > bottomLimit then
+                                -- We hit the bottom! Truncate and abort drawing this column.
+                                local chopped = lineStr:sub(1, -4) .. "..."
+                                love.graphics.printf(chopped, xOffset, lineY, colPrintWidth, colData.align)
+                                colHeight = colHeight + colData.font:getHeight()
+                                break
+                            else
+                                love.graphics.printf(lineStr, xOffset, lineY, colPrintWidth, colData.align)
+                                lineY = lineY + colData.font:getHeight()
+                                colHeight = colHeight + colData.font:getHeight()
+                            end
+                        end
 
-                    local splitPos = rawText:find("|")
-                    if splitPos then
-                        local leftText = rawText:sub(1, splitPos - 1):match("^%s*(.-)%s*$")
-                        local rightText = rawText:sub(splitPos + 1):match("^%s*(.-)%s*$")
-                        love.graphics.setFont(currentFont)
+                        if colHeight > maxRowHeight then maxRowHeight = colHeight end
 
-                        -- THE FIX: math.max(1, width) prevents 0-dimension canvases!
-                        local lw1, lh1 = math.max(1, currentFont:getWidth(leftText)), currentFont:getHeight()
-                        local c1 = love.graphics.newCanvas(lw1, lh1)
-                        love.graphics.setCanvas(c1); love.graphics.clear(0,0,0,0); love.graphics.setColor(1,1,1,1); love.graphics.print(leftText, 0, 0); love.graphics.setCanvas()
-                        local id1 = c1:newImageData()
-
-                        -- THE FIX: Same for the right side!
-                        local lw2, lh2 = math.max(1, currentFont:getWidth(rightText)), currentFont:getHeight()
-                        local c2 = love.graphics.newCanvas(lw2, lh2)
-                        love.graphics.setCanvas(c2); love.graphics.clear(0,0,0,0); love.graphics.setColor(1,1,1,1); love.graphics.print(rightText, 0, 0); love.graphics.setCanvas()
-                        local id2 = c2:newImageData()
-
-                        table.insert(SlideTitles[i].lines, {
-                            is_split = true,
-                            l_ptr = ffi.cast("uint32_t*", id1:getPointer()), l_w = lw1, _k1 = id1,
-                            r_ptr = ffi.cast("uint32_t*", id2:getPointer()), r_w = lw2, _k2 = id2,
-                            h = lh1
-                        })
-                    else
-                        love.graphics.setFont(currentFont)
-
-                        -- THE FIX: Same for standard lines!
-                        local lw, lh = math.max(1, currentFont:getWidth(rawText)), currentFont:getHeight()
-                        local canv = love.graphics.newCanvas(lw, lh)
-                        love.graphics.setCanvas(canv); love.graphics.clear(0,0,0,0); love.graphics.setColor(1,1,1,1); love.graphics.print(rawText, 0, 0); love.graphics.setCanvas()
-                        local idat = canv:newImageData()
-
-                        table.insert(SlideTitles[i].lines, {
-                            is_split = false,
-                            ptr = ffi.cast("uint32_t*", idat:getPointer()), w = lw, h = lh, _keepAlive = idat
-                        })
                     end
+                    -- GEAR 2: The Micro-Gap (Shrunk from 2% to 0.5%)
+                    currentY = currentY + maxRowHeight + floor(virtH * 0.005)
+                else
+                    -- GEAR 3: The Macro-Gap! If s == "", advance the cursor by one line of text.
+                    currentY = currentY + fonts.body:getHeight()
                 end
             end
         end
+        love.graphics.setCanvas()
+        
+        local imgData = giantCanvas:newImageData()
+        SlideTitles[i] = {
+            ptr = ffi.cast("uint32_t*", imgData:getPointer()),
+            w = virtW, h = virtH,
+            _keepAlive = imgData,
+            text_z_offset = (Box_HT[i] + 5),
+            opt_scale = optimal_scale
+        }
     end
 end
 local function CreateTriObject(x, y, z, vCount, tCount, radius, isKinematic, hasCollision)
@@ -224,9 +250,14 @@ local function updateTargetSide()
     local s = manifest[TargetSlide]
     if not s then return end
     local nx, nz = Box_NX[TargetSlide], Box_NZ[TargetSlide]
-    -- Replace the GetViewDistance call with the raw "Perfect Fit" math
+
     local distScale = max(s.h, s.w * (CANVAS_H / CANVAS_W));
-    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING;
+    -- If Zen Mode is active, strip the padding so it sits perfectly flush with the screen!
+    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
+
+
+    -- Replace the GetViewDistance call with the raw "Perfect Fit" math
+    -- local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING;
     -- local dist = GetViewDistance(s.w, s.h) * 1.5
     -- print("IN UPDATETARGETSIDE:",dist)
     local fx, fy, fz = s.x + nx * dist, s.y, s.z + nz * dist
@@ -302,41 +333,41 @@ local function BuildCollisionPools()
 end
 
 function love.load()
-    -- love.window.setMode(800, 800, { fullscreen = true, vsync = 0, resizable = true })
-    -- local windowW, windowH = love.graphics.getDimensions()
-    local displayCount = love.window.getDisplayCount()
-    local primaryIndex = 1 -- Fallback
+    love.window.setMode(800, 800, { fullscreen = true, vsync = 0, resizable = true })
+    local windowW, windowH = love.graphics.getDimensions()
+    -- local displayCount = love.window.getDisplayCount()
+    -- local primaryIndex = 1 -- Fallback
 
     -- Find which index is actually the Primary (0,0) monitor
-    for i = 1, displayCount do
-        local x, y = love.window.getPosition(i)
-        if x == 0 and y == 0 then
-            primaryIndex = i
-            break
-        end
-    end
+    -- for i = 1, displayCount do
+       -- local x, y = love.window.getPosition(i)
+       -- if x == 0 and y == 0 then
+         --   primaryIndex = i
+         --   break
+       -- end
+   -- end
 
     -- Get hardware-validated modes for the TRUE primary monitor
-    local modes = love.window.getFullscreenModes(primaryIndex)
-    local windowW, windowH = love.window.getDesktopDimensions(primaryIndex)
+   -- local modes = love.window.getFullscreenModes(primaryIndex)
+    --local windowW, windowH = love.window.getDesktopDimensions(primaryIndex)
 
-    if #modes > 0 then
-        -- Use the highest hardware-supported resolution found
-        windowW = modes[1].width
-        windowH = modes[1].height
-    end
+--    if #modes > 0 then
+  --      -- Use the highest hardware-supported resolution found
+    --    windowW = modes[1].width
+      --  windowH = modes[1].height
+  --  end
 
     -- Ausschlussverfahren: Exclusive for Windows (Bypass DWM), Desktop for Linux (VM Safe)
-    local targetOS = love.system.getOS()
-    local fsType = (targetOS == "Windows") and "exclusive" or "desktop"
-    love.window.setMode(windowW, windowH, {
-        fullscreen = true,
+    --local targetOS = love.system.getOS()
+    --local fsType = (targetOS == "Windows") and "exclusive" or "desktop"
+ --   love.window.setMode(windowW, windowH, {
+   --     fullscreen = true,
         -- fullscreentype = "exclusive",
-        fullscreentype = fsType,
-        display = primaryIndex, -- Target the specific hardware index
-        vsync = 0,
-        centered = true
-    })
+     --   fullscreentype = fsType,
+     --   display = primaryIndex, -- Target the specific hardware index
+    ----    vsync = 0,
+     --   centered = true
+   -- })
     ReinitBuffers(windowW, windowH)
     love.mouse.setRelativeMode(isMouseCaptured)
     Font_UI = love.graphics.newFont(14)
@@ -367,7 +398,7 @@ function love.load()
         SlidesInternal.SpawnParticleAccelerator(slideAPI, 5, 45)
         SlidesInternal.SpawnHeroDonut(slideAPI, 6)
         SlidesInternal.SpawnChaosCluster(slideAPI, 7, 20)
-
+        SlidesInternal.SpawnDataSpikes(slideAPI, 300)
         -- Crucial: Compile the branchless pools!
         BuildCollisionPools()
 
@@ -396,6 +427,26 @@ function love.keypressed(key)
     elseif key == "c" then TriggerChaosField()
     elseif key == "v" then TriggerVortex() -- The Spin Fix!
     elseif key == "g" then TriggerGravity() -- The Implosion Fix!
+    elseif key == "z" then
+        isZenMode = not isZenMode
+        if presentationMode then
+            -- 1. Breadcrumbs: Save exactly where we are right now
+            startX, startY, startZ = Cam_X, Cam_Y, Cam_Z
+            startYaw, startPitch = Cam_Yaw, Cam_Pitch -- Typo fixed!
+            
+            -- 2. Toggle the Padding
+            CAM_PADDING = isZenMode and 0 or 200
+            
+            -- 3. Reset the lerp timer so we glide to the new position
+            lerpT, arrivalTimer = 0, 0
+            isSettled = false
+            
+            -- 4. Calculate the new physical destination (0 or 200 padding)
+            updateTargetSide()
+            
+            -- 5. Re-bake the font cache for 1:1 perfect crispness at the new destination
+            InitSlideTextCache()
+        end
     elseif key == "escape" then love.event.quit()
     -- elseif key == "f" then
         -- isFullscreen = not isFullscreen

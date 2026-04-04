@@ -46,26 +46,32 @@ end
 local function Render3DScene()
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
     ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
+
     local cpx, cpy, cpz = Cam_X, Cam_Y, Cam_Z
     local cfw_x, cfw_y, cfw_z = Cam_FWX, Cam_FWY, Cam_FWZ
     local crt_x, crt_z = Cam_RTX, Cam_RTZ
     local cup_x, cup_y, cup_z = Cam_UPX, Cam_UPY, Cam_UPZ
 
-    for i = 0, Pool_Solid_Count - 1 do
+    -- =======================================================
+    -- RENDER PASS 1: THE SLIDES (Two-Sided & Headlamp Shader)
+    -- =======================================================
+    for i = 0, NumSlides - 1 do
         local id = Pool_Solid[i]
         local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
         local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
-        if cz_center + Obj_Radius[id] < 0.1 then goto continue end
-        
+        if cz_center + Obj_Radius[id] < 0.1 then goto continue_slides end
+
         local cx_center = dx*Cam_RTX + dz*Cam_RTZ
         local cy_center = dx*Cam_UPX + dy*Cam_UPY + dz*Cam_UPZ
         local depth = max(0.1, cz_center)
+        
         if abs(cx_center) <= (HALF_W*depth/Cam_FOV)+Obj_Radius[id] and abs(cy_center) <= (HALF_H*depth/Cam_FOV)+Obj_Radius[id] then
             local rx, rz = Obj_RTX[id], Obj_RTZ[id]
             local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
             local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
             local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
             local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
+            
             for v = 0, vCount - 1 do
                 local idx = vStart + v
                 local lx, ly, lz = Vert_LX[idx], Vert_LY[idx], Vert_LZ[idx]
@@ -77,9 +83,11 @@ local function Render3DScene()
                     local f = Cam_FOV / cz
                     Vert_PX[idx] = HALF_W + (vdx*Cam_RTX + vdz*Cam_RTZ) * f
                     Vert_PY[idx] = HALF_H + (vdx*Cam_UPX + vdy*Cam_UPY + vdz*Cam_UPZ) * f
-                    Vert_PZ[idx] = cz * 1.004; Vert_Valid[idx] = true
+                    Vert_PZ[idx] = cz * 1.004
+                    Vert_Valid[idx] = true
                 end
             end
+
             local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
             for t = 0, tCount - 1 do
                 local idx = tStart + t
@@ -91,8 +99,16 @@ local function Render3DScene()
                         local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
                         local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
                         local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
-                        local light = max(0.2, min(1.0, (nx*0.5 + ny*1.0 + nz*0.5) / sqrt(nx*nx+ny*ny+nz*nz)))
-                        -- if id < NumSlides and id ~= TargetSlide then light = light * 0.25 end
+                        
+                        local len = sqrt(nx*nx+ny*ny+nz*nz)
+                        if len == 0 then len = 1 end
+                        
+                        -- SLIDE SHADER: Two-Sided + Headlamp
+                        local dot_val = abs((nx*0.5 + ny*1.0 + nz*0.5) / len)
+                        local headlamp = abs(nx*cfw_x + ny*cfw_y + nz*cfw_z) / len
+                        if headlamp > dot_val then dot_val = headlamp end
+                        
+                        local light = max(0.2, min(1.0, dot_val))
                         local tc = Tri_Color[idx]
                         local r, g, b = bit.band(bit.rshift(tc,16),0xFF)*light, bit.band(bit.rshift(tc,8),0xFF)*light, bit.band(tc,0xFF)*light
                         RasterizeTriangle(Vert_PX[i1],Vert_PY[i1],Vert_PZ[i1], Vert_PX[i2],Vert_PY[i2],Vert_PZ[i2], Vert_PX[i3],Vert_PY[i3],Vert_PZ[i3], 0xFF000000+bit.lshift(r,16)+bit.lshift(g,8)+b)
@@ -100,7 +116,69 @@ local function Render3DScene()
                 end
             end
         end
-        ::continue::
+        ::continue_slides::
+    end
+
+    -- =======================================================
+    -- RENDER PASS 2: THE PROPS (Moody Single-Source Shader)
+    -- =======================================================
+    if not isZenMode then
+        for i = NumSlides, Pool_Solid_Count - 1 do
+            local id = Pool_Solid[i]
+            local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
+            local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
+            if cz_center + Obj_Radius[id] < 0.1 then goto continue_props end
+
+            local cx_center = dx*Cam_RTX + dz*Cam_RTZ
+            local cy_center = dx*Cam_UPX + dy*Cam_UPY + dz*Cam_UPZ
+            local depth = max(0.1, cz_center)
+            
+            if abs(cx_center) <= (HALF_W*depth/Cam_FOV)+Obj_Radius[id] and abs(cy_center) <= (HALF_H*depth/Cam_FOV)+Obj_Radius[id] then
+                local rx, rz = Obj_RTX[id], Obj_RTZ[id]
+                local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
+                local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+                local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+                local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
+                
+                for v = 0, vCount - 1 do
+                    local idx = vStart + v
+                    local lx, ly, lz = Vert_LX[idx], Vert_LY[idx], Vert_LZ[idx]
+                    local wx, wy, wz = ox+lx*rx+ly*ux+lz*fx, oy+ly*uy+lz*fy, oz+lx*rz+ly*uz+lz*fz
+                    Vert_CX[idx], Vert_CY[idx], Vert_CZ[idx] = wx, wy, wz
+                    local vdx, vdy, vdz = wx-cpx, wy-cpy, wz-cpz
+                    local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
+                    if cz < 0.1 then Vert_Valid[idx] = false else
+                        local f = Cam_FOV / cz
+                        Vert_PX[idx] = HALF_W + (vdx*Cam_RTX + vdz*Cam_RTZ) * f
+                        Vert_PY[idx] = HALF_H + (vdx*Cam_UPX + vdy*Cam_UPY + vdz*Cam_UPZ) * f
+                        Vert_PZ[idx] = cz * 1.004
+                        Vert_Valid[idx] = true
+                    end
+                end
+
+                local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
+                for t = 0, tCount - 1 do
+                    local idx = tStart + t
+                    local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
+                    if Vert_Valid[i1] and Vert_Valid[i2] and Vert_Valid[i3] then
+                        local winding = (Vert_PX[i2]-Vert_PX[i1])*(Vert_PY[i3]-Vert_PY[i1])-(Vert_PY[i2]-Vert_PY[i1])*(Vert_PX[i3]-Vert_PX[i1])
+                        if winding < 0 then
+                            local wx1, wy1, wz1 = Vert_CX[i1], Vert_CY[i1], Vert_CZ[i1]
+                            local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
+                            local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
+                            local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
+                            
+                            -- PROP SHADER: Standard Moody Lighting
+                            local light = max(0.2, min(1.0, (nx*0.5 + ny*1.0 + nz*0.5) / sqrt(nx*nx+ny*ny+nz*nz)))
+                            local tc = Tri_Color[idx]
+                            local r, g, b = bit.band(bit.rshift(tc,16),0xFF)*light, bit.band(bit.rshift(tc,8),0xFF)*light, bit.band(tc,0xFF)*light
+                            RasterizeTriangle(Vert_PX[i1],Vert_PY[i1],Vert_PZ[i1], Vert_PX[i2],Vert_PY[i2],Vert_PZ[i2], Vert_PX[i3],Vert_PY[i3],Vert_PZ[i3], 0xFF000000+bit.lshift(r,16)+bit.lshift(g,8)+b)
+                        end
+                    end
+                end
+            end
+            ::continue_props::
+        end
     end
 end
 
@@ -123,13 +201,26 @@ local function BlitUI_3D(obj, cx, cy, depth, scale, alpha, z_bias)
         if ty >= 0 and ty < th then
             local screenOff = y * CANVAS_W
             local buffOff = ty * tw
+
             for x = clipX, endX do
-                if ZBuffer[screenOff + x] >= z_threshold then
-                    local tx = floor((x - startX) * inv_scale)
-                    if tx >= 0 and tx < tw then
-                        local px = ptr[buffOff + tx]
-                        local pa = bit.rshift(px, 24)
-                        if pa > 0 then
+                local tx = floor((x - startX) * inv_scale)
+                if tx >= 0 and tx < tw then
+                    local px = ptr[buffOff + tx]
+
+                    -- FAST SKIP: Is this pixel visible at all? (Alpha >= 1)
+                    if px >= 0x01000000 then
+
+                        -- ONLY check the 3D ZBuffer if the 2D pixel actually exists!
+                        if ZBuffer[screenOff + x] >= z_threshold then
+                            local pa = bit.rshift(px, 24)
+            -- deleted slow code
+            -- for x = clipX, endX do
+                -- if ZBuffer[screenOff + x] >= z_threshold then
+                    -- local tx = floor((x - startX) * inv_scale)
+                    -- if tx >= 0 and tx < tw then
+                        -- local px = ptr[buffOff + tx]
+                        -- local pa = bit.rshift(px, 24)
+                        -- if pa > 0 then
                             local final_a = bit.rshift(pa * global_a256, 8)
                             if final_a > 0 then
                                 local bg = ScreenPtr[screenOff + x]
@@ -149,69 +240,43 @@ end
 
 local function RenderText()
     if NumSlides == 0 or not presentationMode then return end
-    
+
     local i = TargetSlide
     local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
     local bnx, bnz = Box_NX[i], Box_NZ[i]
     local cache = SlideTitles[i]
-    
+
     local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
     local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
     local dot = (dist > 0) and ((camDX/dist) * bnx + (camDZ/dist) * bnz) or 0
     local abs_dot = abs(dot)
-    
+
     if abs_dot < 0.707 then return end
-    
+
     local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
     local tdx, tdz = (sx + bnx * t_off) - Cam_X, (sz + bnz * t_off) - Cam_Z
     local depth = tdx*Cam_FWX + camDY*Cam_FWY + tdz*Cam_FWZ
     if depth < 10 or depth > 8000 then return end
-    
+
     local alpha_close = max(0, min(1, (depth-100)/300))
     local alpha_angle = min(1, (abs_dot-0.707)*5)
     local alpha_far   = max(0, min(1, (8000-depth)/2000))
     local final_alpha = alpha_close * alpha_angle * alpha_far
-    
+
     if not isSettled then return end
     local arrival_fade = min(1.0, arrivalTimer / 0.3)
     final_alpha = final_alpha * arrival_fade
-    
+
     if final_alpha <= 0.01 then return end
-    
+
     local renderX, renderY = HALF_W, HALF_H
-    local current_scale = 1.0
-    local sh_px = (Box_HH[i] * 2) * (Cam_FOV / depth)
-    local sw_px = (Box_HW[i] * 2) * (Cam_FOV / depth)
-    
-    -- Snap title slightly lower (0.35 instead of 0.40) to give it breathing room
-    local titleY = renderY - (sh_px * 0.35)
-    BlitUI_3D(cache, renderX, titleY, depth, current_scale, final_alpha, 5)
-    
-    -- Render the raw centered lines and Quad Layouts
-    if #cache.lines > 0 then
-        local currentY = renderY - (sh_px * 0.15)
-        local padding = floor(20 * current_scale)
-        
-        for lIdx = 1, #cache.lines do
-            local line = cache.lines[lIdx]
-            
-            if line.is_split then
-                -- QUAD LAYOUT: Push left text 22% left, push right text 22% right
-                local leftX = floor(renderX - (sw_px * 0.22))
-                local rightX = floor(renderX + (sw_px * 0.22))
-                
-                -- Passing final_alpha directly to avoid nil errors!
-                BlitUI_3D({ptr = line.l_ptr, w = line.l_w, h = line.h}, leftX, currentY, depth, current_scale, final_alpha, 5)
-                BlitUI_3D({ptr = line.r_ptr, w = line.r_w, h = line.h}, rightX, currentY, depth, current_scale, final_alpha, 5)
-                
-            elseif line.ptr then
-                -- Standard Centered Layout
-                BlitUI_3D(line, renderX, currentY, depth, current_scale, final_alpha, 5)
-            end
-            
-            currentY = currentY + floor(line.h * current_scale) + padding
-        end
-    end
+
+    -- The camera-to-canvas scale ratio
+    local current_perspective = (Cam_FOV / depth)
+    local draw_scale = current_perspective / cache.opt_scale
+
+    -- ONE Call. Peak Performance.
+    BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
 
 function Renderer.DrawFrame()
