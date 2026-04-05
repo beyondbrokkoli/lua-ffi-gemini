@@ -1,22 +1,33 @@
 -- ========================================================================
--- REBUILD ORCHESTRATOR 
+-- REBUILD ORCHESTRATOR (ARMORED EDITION)
 -- Takes an AI SNAPSHOT and expands it back into perfectly indented Lua files
+-- Now with 100% more Comment Immunity!
 -- ========================================================================
 
 local input_file = arg[1] or "snapshot.txt"
 
--- 1. Smart Statement Splitter (Ignores ';' inside strings)
+-- 1. Smart Statement Splitter (Ignores ';' inside strings AND handles comments)
 local function split_statements(minified)
     local stmts = {}
     local current = ""
     local in_string = false
+    local in_comment = false
     local quote_char = ""
     local i = 1
-    
+
     while i <= #minified do
         local c = minified:sub(i, i)
-        
-        if in_string then
+        local next_c = minified:sub(i+1, i+1)
+
+        if in_comment then
+            if c == "\n" then
+                in_comment = false
+                table.insert(stmts, current)
+                current = ""
+            else
+                current = current .. c
+            end
+        elseif in_string then
             -- Handle escaped characters
             if c == "\\" then
                 current = current .. c
@@ -29,7 +40,14 @@ local function split_statements(minified)
                 current = current .. c
             end
         else
-            if c == '"' or c == "'" then
+            -- Detect start of comment
+            if c == "-" and next_c == "-" then
+                -- Push whatever code we had before the comment
+                if current:match("%S") then table.insert(stmts, current) end
+                in_comment = true
+                current = "--"
+                i = i + 1 -- Skip the second dash
+            elseif c == '"' or c == "'" then
                 in_string = true
                 quote_char = c
                 current = current .. c
@@ -52,7 +70,7 @@ end
 local function count_word(str, word)
     local count = 0
     -- Extracts purely words and compares them, ignoring spaces entirely
-    for w in str:gmatch("[%w_]+") do 
+    for w in str:gmatch("[%w_]+") do
         if w == word then count = count + 1 end
     end
     return count
@@ -79,17 +97,19 @@ local function format_lua(stmts)
         local current_indent = math.max(0, indent - line_dec)
         table.insert(out, string.rep("    ", current_indent) .. stmt)
 
-        -- Pad string with spaces for easy regex boundary matching, and strip out literal strings
-        local clean_stmt = " " .. stmt:gsub('".-"', ''):gsub("'.-'", '') .. " "
+        -- Pad string with spaces, strip out literal strings, AND strip comments!
+        local clean_stmt = stmt:gsub('".-"', ''):gsub("'.-'", '')
+        clean_stmt = clean_stmt:gsub("%-%-.*", "") -- Strip -- and everything after it
+        clean_stmt = " " .. clean_stmt .. " "
 
         -- Increase indent for the next line
-        local inc = count_word(clean_stmt, "function") + count_word(clean_stmt, "do") + 
-                    count_word(clean_stmt, "then") + count_word(clean_stmt, "repeat") + 
+        local inc = count_word(clean_stmt, "function") + count_word(clean_stmt, "do") +
+                    count_word(clean_stmt, "then") + count_word(clean_stmt, "repeat") +
                     count_word(clean_stmt, "else")
         for _ in clean_stmt:gmatch("{") do inc = inc + 1 end
 
         -- Decrease indent for the next line
-        local dec = count_word(clean_stmt, "end") + count_word(clean_stmt, "until") + 
+        local dec = count_word(clean_stmt, "end") + count_word(clean_stmt, "until") +
                     count_word(clean_stmt, "else") + count_word(clean_stmt, "elseif")
         for _ in clean_stmt:gmatch("}") do dec = dec + 1 end
 
@@ -105,7 +125,7 @@ end
 local function parse_and_write(filename, content)
     local stmts = split_statements(content)
     local formatted = format_lua(stmts)
-    
+
     local f = io.open("RESTORED/" .. filename, "w")
     if f then
         f:write(formatted .. "\n")
@@ -153,4 +173,3 @@ end
 
 f:close()
 print("--- RESTORATION COMPLETE ---")
-

@@ -153,5 +153,40 @@ function Physics.ResolveCollisions()
         Obj_X[id], Obj_Y[id], Obj_Z[id] = px, py, pz
     end
 end
+function Physics.TriggerChaosField()
+    for i = 0, Pool_Kinematic_Count - 1 do
+        local id = Pool_Kinematic[i]
+        Obj_VelX[id] = Obj_VelX[id] + (math.random() - 0.5) * 2000
+        Obj_VelY[id] = Obj_VelY[id] + (math.random() - 0.5) * 2000
+        Obj_VelZ[id] = Obj_VelZ[id] + (math.random() - 0.5) * 2000
+        Obj_RotSpeedYaw[id] = Obj_RotSpeedYaw[id] + (math.random() - 0.5) * 30
+        Obj_RotSpeedPitch[id] = Obj_RotSpeedPitch[id] + (math.random() - 0.5) * 30
+    end
+end
 
+function Physics.TriggerVortex()
+    for i = 0, Pool_Kinematic_Count - 1 do
+        local id = Pool_Kinematic[i]
+        Obj_RotSpeedYaw[id] = Obj_RotSpeedYaw[id] + (math.random() - 0.5) * 50
+        Obj_RotSpeedPitch[id] = Obj_RotSpeedPitch[id] + (math.random() - 0.5) * 50
+    end
+end
+
+function Physics.TriggerGravity()
+    for i = 0, Pool_Kinematic_Count - 1 do
+        local id = Pool_Kinematic[i]
+        local homeIdx = Obj_HomeIdx[id]
+        if homeIdx >= 0 then
+            local dx = Sphere_X[homeIdx] - Obj_X[id]
+            local dy = Sphere_Y[homeIdx] - Obj_Y[id]
+            local dz = Sphere_Z[homeIdx] - Obj_Z[id]
+            local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
+            if dist > 0.1 then
+                Obj_VelX[id] = Obj_VelX[id] + (dx/dist) * 800
+                Obj_VelY[id] = Obj_VelY[id] + (dy/dist) * 800
+                Obj_VelZ[id] = Obj_VelZ[id] + (dz/dist) * 800
+            end
+        end
+    end
+end
 return Physics

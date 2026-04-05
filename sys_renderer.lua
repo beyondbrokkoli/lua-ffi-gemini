@@ -292,13 +292,24 @@ local function RenderText()
     local tdz = (sz + bnz * t_off) - Cam_Z
     local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
     if depth < 10 or depth > 8000 then return end
+
     local alpha_close = max(0, min(1, (depth-100)/300))
     local alpha_angle = min(1, (abs_dot-0.707)*5)
     local alpha_far = max(0, min(1, (8000-depth)/2000))
     local final_alpha = alpha_close * alpha_angle * alpha_far
-    if not isSettled then return end
-    local arrival_fade = min(1.0, arrivalTimer / 0.3)
-    final_alpha = final_alpha * arrival_fade
+    -- THE NEW UNIFIED TEXT FADER
+    local fade_mult = 1.0
+    if isDeparting then
+            fade_mult = max(0, departTimer / 0.15)
+        -- 150ms fade out
+    elseif not isSettled then
+            fade_mult = 0
+        -- Invisible during flight
+    else
+            fade_mult = min(1.0, arrivalTimer / 0.3)
+        -- 300ms fade in
+    end
+    final_alpha = final_alpha * fade_mult
     if final_alpha <= 0.01 then return end
     local renderX, renderY = HALF_W, HALF_H
     local current_perspective = (Cam_FOV / depth)

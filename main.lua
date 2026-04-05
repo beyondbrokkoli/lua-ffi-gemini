@@ -4,6 +4,7 @@ local Engine = require("engine")
 local SlidesInternal = require("slides_internal")
 local Physics = require("sys_physics")
 local Renderer = require("sys_renderer")
+local Factory = require("sys_factory")
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local random, sqrt, cos, sin, pi, atan2 = math.random, math.sqrt, math.cos, math.sin, math.pi, math.atan2
 pendingResize = false
@@ -197,7 +198,7 @@ local function CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides, 
     return id
 end
 local slideAPI = {
-    CreateTriObject = CreateTriObject, CreateTorus = CreateTorus,
+    CreateTriObject = Factory.CreateTriObject, CreateTorus = Factory.CreateTorus,
     Obj_VertStart = Obj_VertStart, Obj_VertCount = Obj_VertCount,
     Obj_TriStart = Obj_TriStart, Obj_TriCount = Obj_TriCount,
     Vert_LX = Vert_LX, Vert_LY = Vert_LY, Vert_LZ = Vert_LZ,

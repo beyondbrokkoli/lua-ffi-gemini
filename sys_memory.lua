@@ -92,17 +92,15 @@ Cam_FOV = 600
 Cam_FWX, Cam_FWY, Cam_FWZ = 0, 0, 1
 Cam_RTX, Cam_RTY, Cam_RTZ = 1, 0, 0
 Cam_UPX, Cam_UPY, Cam_UPZ = 0, 1, 0
+
 Way_X = ffi.new("float[?]", MAX_SLIDES)
 Way_Y = ffi.new("float[?]", MAX_SLIDES)
 Way_Z = ffi.new("float[?]", MAX_SLIDES)
 Way_Yaw = ffi.new("float[?]", MAX_SLIDES)
 Way_Pitch = ffi.new("float[?]", MAX_SLIDES)
 tX, tY, tZ, tYaw, tPitch = 0, 0, 0, 0, 0
-lerpT, arrivalTimer = 0, 0
-startX, startY, startZ = 0, 0, 0
-startYaw, startPitch = 0, 0
-lastFreeX, lastFreeY, lastFreeZ = 0, 0, 0
-lastFreeYaw, lastFreePitch = 0, 0
+startX, startY, startZ, startYaw, startPitch = 0, 0, 0, 0, 0
+lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = 0, 0, 0, 0, 0
 TargetSlide = 0
 activeSlide = 0
 NumSlides = 0
@@ -113,6 +111,12 @@ globalTimer = 0
 Font_Slide = nil
 Font_UI = nil
 SlideTitles = {}
+-- THE NEW 3-PHASE STATE MACHINE VARIABLES
+lerpT, arrivalTimer = 0, 0
+isSettled = true
+isDeparting = false
+departTimer = 0
+pendingCacheRebuild = false
 function ReinitBuffers(w, h)
     CANVAS_W, CANVAS_H = w, h
     HALF_W, HALF_H = w * 0.5, h * 0.5
