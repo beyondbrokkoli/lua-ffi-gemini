@@ -40,7 +40,6 @@ function SlideGuard.PreflightCheck(manifest, max_slides)
         if type(id) ~= "number" or id < 0 or id >= max_slides then
             audit("WARN", string.format("Index [%s] out of FFI buffer bounds.", tostring(id)))
         else
-            -- We no longer mandate x, y, z, w, h here because SyncGeometry auto-fills them!
             verified = verified + 1
         end
     end
@@ -51,7 +50,7 @@ function SlideGuard.ProtectAPI(raw_api) local guarded_api = {}
     local mesh_map = {}
     local minX, minY, minZ = 1e30, 1e30, 1e30
     local maxX, maxY, maxZ = -1e30, -1e30, -1e30
-    function guarded_api.RegisterGeometry(id, data) return safe_execute(function() local hw, hh, ht = (data.w or 1600) * 0.5, (data.h or 900) * 0.5, data.thickness or 120
+    function guarded_api.RegisterGeometry(id, data) return safe_execute(function() local hw, hh, ht = data.w * 0.5, data.h * 0.5, data.thickness * 0.5
             minX, maxX = math.min(minX, data.x - hw), math.max(maxX, data.x + hw)
             minY, maxY = math.min(minY, data.y - hh), math.max(maxY, data.y + hh)
             minZ, maxZ = math.min(minZ, data.z - ht), math.max(maxZ, data.z + ht)

@@ -60,7 +60,7 @@ local function copy_file(src, dest)
     f_out:close()
     return true
 end
-    
+
 local process_manifest = {
     ["sys_memory.lua"] = "BUILD/sys_memory.lua",
     ["sys_physics.lua"] = "BUILD/sys_physics.lua",

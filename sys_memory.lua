@@ -1,6 +1,6 @@
 local ffi = require("ffi")
 MAX_SLIDES = 100
-MAX_OBJS = 20480
+MAX_OBJS = 2048
 NumObjects = 0
 NumTotalVerts, NumTotalTris = 0, 0
 Pool_Solid = ffi.new("int[?]", MAX_OBJS)
