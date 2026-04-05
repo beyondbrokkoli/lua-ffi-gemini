@@ -4,20 +4,20 @@ for maximum throughput.
 
 Uses a Structure of Arrays (SoA) layout with raw FFI buffers  
 to eliminate garbage collection spikes and ensure  
-cache-friendly linear access.  
+cache-friendly linear memory access.  
 
-A deterministic Transform → Project → Rasterize flow  
-that avoids branching logic to maintain  
-high instruction speed.  
+Executes a deterministic Transform → Project → Rasterize pipeline  
+stripped of branching logic to keep compiled  
+LuaJIT traces pinned to bare metal.  
 
-Features a decoupled architecture where a Shape Factory  
-provides a raw data manifest, while the engine  
-handles hardware-validated camera waypoints.  
+Features a Zero-Config Procedural Bridge where sparse JSON manifests  
+are algorithmically expanded into sweeping,  
+hardware-validated 3D camera waypoints.  
 
-A custom scanline implementation with a Z-buffer  
-and flat shading, writing directly to a  
-32-bit screen pointer.  
+Employs a custom rasterizer with a depth-tested Z-buffer,  
+decoupled Lambertian lighting, and baked ambient shadows  
+writing directly to a 32-bit screen pointer.  
 
-Manages 500+ dynamic entities with  
-Local-Space Collision in  
-exclusive fullscreen.  
+Simulates 500+ kinetic entities with local-space collision,  
+overlaid with cinematic CRT post-processing  
+in exclusive, zero-latency fullscreen.
