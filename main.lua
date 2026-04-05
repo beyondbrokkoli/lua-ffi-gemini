@@ -366,6 +366,40 @@ function love.keypressed(key)
         lerpT, arrivalTimer = 0, 0
         updateTargetSide()
         presentationMode = true
+    elseif presentationMode and (key == "left" or key == "right" or key == "up" or key == "down") then
+        local COLS = 8
+        local row = math.floor(TargetSlide / COLS)
+        local col = TargetSlide % COLS
+        local row_start = row * COLS
+        local oldTarget = TargetSlide
+        if key == "right" then
+            if col + 1 < COLS then
+                local target = row_start + col + 1
+                if target < NumSlides then TargetSlide = target end
+            else
+                TargetSlide = row_start
+            end
+        elseif key == "left" then
+            if col - 1 >= 0 then
+                local target = row_start + col - 1
+                if target < NumSlides then TargetSlide = target end
+            else
+                local target = row_start + COLS - 1
+                if target < NumSlides then TargetSlide = target end
+            end
+        elseif key == "up" then
+            if TargetSlide - COLS >= 0 then TargetSlide = TargetSlide - COLS end
+        elseif key == "down" then
+            local target = TargetSlide + COLS
+            if target < NumSlides then TargetSlide = target end
+        end
+        if TargetSlide ~= oldTarget then
+            startX, startY, startZ, startYaw, startPitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
+            lerpT = isZenMode and 1.0 or 0
+            arrivalTimer = isZenMode and 0.3 or 0
+            snapshotBaked = false
+            updateTargetSide()
+        end
     elseif key == "i" or key == "u" then
         presentationMode = false
         isZenMode = false
