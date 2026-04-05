@@ -221,7 +221,7 @@ end
 local function Render3DScene()
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
     ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
-    RenderStars()
+    -- RenderStars()
     local cpx, cpy, cpz = Cam_X, Cam_Y, Cam_Z
     local cfw_x, cfw_y, cfw_z = Cam_FWX, Cam_FWY, Cam_FWZ
     local crt_x, crt_z = Cam_RTX, Cam_RTZ
