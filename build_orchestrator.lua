@@ -69,8 +69,8 @@ local process_manifest = {
     ["engine.lua"] = "BUILD/engine.lua",
     ["slide_guard.lua"] = "BUILD/slide_guard.lua",
     ["slides_internal.lua"] = "BUILD/slides_internal.lua",
-    ["build_orchestrator.lua"] = "BUILD/build_orchestrator.lua",
-    ["rebuild_orchestrator.lua"] = "BUILD/rebuild_orchestrator.lua"
+--    ["build_orchestrator.lua"] = "BUILD/build_orchestrator.lua",
+--    ["rebuild_orchestrator.lua"] = "BUILD/rebuild_orchestrator.lua"
 }
 local raw_manifest = {
     ["dkjson.lua"] = "BUILD/dkjson.lua",

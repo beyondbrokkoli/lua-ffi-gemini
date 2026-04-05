@@ -3,6 +3,14 @@ local bit = require("bit")
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local sqrt = math.sqrt
 local Renderer = {}
+local star_x, star_y, star_z, star_c = {}, {}, {}, {}
+for i = 1, 1000 do
+    star_x[i] = (math.random() - 0.5) * 4000
+    star_y[i] = (math.random() - 0.5) * 4000
+    star_z[i] = (math.random() - 0.5) * 4000
+    local brightness = math.random(50, 200)
+    star_c[i] = bit.bor(0xFF000000, bit.lshift(brightness, 16), bit.lshift(brightness, 8), brightness)
+end
 local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
     if y1 > y2 then x1,x2 = x2,x1
         y1,y2 = y2,y1
@@ -49,121 +57,135 @@ local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
         end
     end
 end
+local function RenderStars()
+    local cx, cy, cz = Cam_X, Cam_Y, Cam_Z
+    local fwx, fwy, fwz = Cam_FWX, Cam_FWY, Cam_FWZ
+    local rtx, rtz = Cam_RTX, Cam_RTZ
+    local upx, upy, upz = Cam_UPX, Cam_UPY, Cam_UPZ
+    for i = 1, 1000 do
+        local dx = (star_x[i] - cx) % 4000 - 2000
+        local dy = (star_y[i] - cy) % 4000 - 2000
+        local dz = (star_z[i] - cz) % 4000 - 2000
+        local depth = dx*fwx + dy*fwy + dz*fwz
+        if depth > 10 then
+            local px = HALF_W + (dx*rtx + dz*rtz) * (Cam_FOV / depth)
+            local py = HALF_H + (dx*upx + dy*upy + dz*upz) * (Cam_FOV / depth)
+            if px >= 0 and px < CANVAS_W and py >= 0 and py < CANVAS_H then
+                local off = floor(py) * CANVAS_W + floor(px)
+                if depth < ZBuffer[off] then ScreenPtr[off] = star_c[i] end
+            end
+        end
+    end
+end
+function Renderer.BakeStaticLighting()
+    for i = 0, NumSlides - 1 do
+        local id = Pool_Solid[i]
+        local vStart = Obj_VertStart[id]
+        local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
+        local rx, rz = Obj_RTX[id], Obj_RTZ[id]
+        local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
+        local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+        for t = 0, tCount - 1 do
+            local idx = tStart + t
+            local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
+            local getW = function(vi)
+                local lx, ly, lz = Vert_LX[vi], Vert_LY[vi], Vert_LZ[vi]
+                return lx*rx+ly*ux+lz*fx, ly*uy+lz*fy, lx*rz+ly*uz+lz*fz
+            end
+            local wx1, wy1, wz1 = getW(i1)
+            local wx2, wy2, wz2 = getW(i2)
+            local wx3, wy3, wz3 = getW(i3)
+            local nx = (wy1-wy2)*(wz1-wz3) - (wz1-wz2)*(wy1-wy3)
+            local ny = (wz1-wz2)*(wx1-wx3) - (wx1-wx2)*(wz1-wz3)
+            local nz = (wx1-wx2)*(wy1-wy3) - (wy1-wy2)*(wx1-wx3)
+            local len = sqrt(nx*nx+ny*ny+nz*nz)
+            if len == 0 then len = 1 end
+            local dot_val = abs((nx*0.5 + ny*1.0 + nz*0.5) / len)
+            Tri_BaseLight[idx] = max(0.2, min(1.0, dot_val))
+        end
+    end
+end
+local function DrawMesh(id, is_slide, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
+    local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
+    local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
+    if cz_center + Obj_Radius[id] < 0.1 then return end
+    local cx_center = dx*crt_x + dz*crt_z
+    local cy_center = dx*cup_x + dy*cup_y + dz*cup_z
+    local depth = max(0.1, cz_center)
+    if abs(cx_center) > (HALF_W*depth/Cam_FOV)+Obj_Radius[id] or abs(cy_center) > (HALF_H*depth/Cam_FOV)+Obj_Radius[id] then return end
+    local rx, rz = Obj_RTX[id], Obj_RTZ[id]
+    local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
+    local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+    local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+    local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
+    for v = 0, vCount - 1 do
+        local idx = vStart + v
+        local lx, ly, lz = Vert_LX[idx], Vert_LY[idx], Vert_LZ[idx]
+        local wx, wy, wz = ox+lx*rx+ly*ux+lz*fx, oy+ly*uy+lz*fy, oz+lx*rz+ly*uz+lz*fz
+        Vert_CX[idx], Vert_CY[idx], Vert_CZ[idx] = wx, wy, wz
+        local vdx, vdy, vdz = wx-cpx, wy-cpy, wz-cpz
+        local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
+        if cz < 0.1 then Vert_Valid[idx] = false else
+            local f = Cam_FOV / cz
+            Vert_PX[idx] = HALF_W + (vdx*crt_x + vdz*crt_z) * f
+            Vert_PY[idx] = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
+            Vert_PZ[idx] = cz * 1.004
+            Vert_Valid[idx] = true
+        end
+    end
+    local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
+    for t = 0, tCount - 1 do
+        local idx = tStart + t
+        local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
+        if Vert_Valid[i1] and Vert_Valid[i2] and Vert_Valid[i3] then
+            local px1, py1, pz1 = Vert_PX[i1], Vert_PY[i1], Vert_PZ[i1]
+            local px2, py2, pz2 = Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2]
+            local px3, py3, pz3 = Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3]
+            local winding = (px2-px1)*(py3-py1) - (py2-py1)*(px3-px1)
+            if winding < 0 then
+                local wx1, wy1, wz1 = Vert_CX[i1], Vert_CY[i1], Vert_CZ[i1]
+                local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
+                local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
+                local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
+                local len = sqrt(nx*nx+ny*ny+nz*nz)
+                if len == 0 then len = 1 end
+                local base_light
+                if is_slide then
+                    base_light = Tri_BaseLight[idx]
+                else
+                    base_light = max(0.2, min(1.0, abs((nx*0.5 + ny*1.0 + nz*0.5) / len)))
+                end
+                local headlamp = abs(nx*cfw_x + ny*cfw_y + nz*cfw_z) / len
+                local final_light = max(base_light, headlamp)
+                if is_slide and not isSettled then
+                    local wave = (math.sin(wy1 * 0.01 + love.timer.getTime() * 10) + 1) * 0.5
+                    final_light = final_light * (0.5 + wave * 0.5)
+                end
+                local tc = Tri_Color[idx]
+                local r = bit.band(bit.rshift(tc,16),0xFF) * final_light
+                local g = bit.band(bit.rshift(tc,8),0xFF) * final_light
+                local b = bit.band(tc,0xFF) * final_light
+                RasterizeTriangle(px1,py1,pz1, px2,py2,pz2, px3,py3,pz3, 0xFF000000+bit.lshift(r,16)+bit.lshift(g,8)+b)
+            end
+        end
+    end
+end
 local function Render3DScene()
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
     ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
+    RenderStars()
     local cpx, cpy, cpz = Cam_X, Cam_Y, Cam_Z
     local cfw_x, cfw_y, cfw_z = Cam_FWX, Cam_FWY, Cam_FWZ
     local crt_x, crt_z = Cam_RTX, Cam_RTZ
     local cup_x, cup_y, cup_z = Cam_UPX, Cam_UPY, Cam_UPZ
     for i = 0, NumSlides - 1 do
-        if isZenMode and i ~= TargetSlide then
-            goto continue_slides
-        end
-        local id = Pool_Solid[i]
-        local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
-        local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
-        if cz_center + Obj_Radius[id] < 0.1 then goto continue_slides end
-        local cx_center = dx*Cam_RTX + dz*Cam_RTZ
-        local cy_center = dx*Cam_UPX + dy*Cam_UPY + dz*Cam_UPZ
-        local depth = max(0.1, cz_center)
-        if abs(cx_center) <= (HALF_W*depth/Cam_FOV)+Obj_Radius[id] and abs(cy_center) <= (HALF_H*depth/Cam_FOV)+Obj_Radius[id] then
-            local rx, rz = Obj_RTX[id], Obj_RTZ[id]
-            local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
-            local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-            local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-            local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
-            for v = 0, vCount - 1 do
-                local idx = vStart + v
-                local lx, ly, lz = Vert_LX[idx], Vert_LY[idx], Vert_LZ[idx]
-                local wx, wy, wz = ox+lx*rx+ly*ux+lz*fx, oy+ly*uy+lz*fy, oz+lx*rz+ly*uz+lz*fz
-                Vert_CX[idx], Vert_CY[idx], Vert_CZ[idx] = wx, wy, wz
-                local vdx, vdy, vdz = wx-cpx, wy-cpy, wz-cpz
-                local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
-                if cz < 0.1 then Vert_Valid[idx] = false else
-                    local f = Cam_FOV / cz
-                    Vert_PX[idx] = HALF_W + (vdx*Cam_RTX + vdz*Cam_RTZ) * f
-                    Vert_PY[idx] = HALF_H + (vdx*Cam_UPX + vdy*Cam_UPY + vdz*Cam_UPZ) * f
-                    Vert_PZ[idx] = cz * 1.004
-                    Vert_Valid[idx] = true
-                end
-            end
-            local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
-            for t = 0, tCount - 1 do
-                local idx = tStart + t
-                local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
-                if Vert_Valid[i1] and Vert_Valid[i2] and Vert_Valid[i3] then
-                    local winding = (Vert_PX[i2]-Vert_PX[i1])*(Vert_PY[i3]-Vert_PY[i1])-(Vert_PY[i2]-Vert_PY[i1])*(Vert_PX[i3]-Vert_PX[i1])
-                    if winding < 0 then
-                        local wx1, wy1, wz1 = Vert_CX[i1], Vert_CY[i1], Vert_CZ[i1]
-                        local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
-                        local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
-                        local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
-                        local len = sqrt(nx*nx+ny*ny+nz*nz)
-                        if len == 0 then len = 1 end
-                        local dot_val = abs((nx*0.5 + ny*1.0 + nz*0.5) / len)
-                        local headlamp = abs(nx*cfw_x + ny*cfw_y + nz*cfw_z) / len
-                        if headlamp > dot_val then dot_val = headlamp end
-                        local light = max(0.2, min(1.0, dot_val))
-                        local tc = Tri_Color[idx]
-                        local r, g, b = bit.band(bit.rshift(tc,16),0xFF)*light, bit.band(bit.rshift(tc,8),0xFF)*light, bit.band(tc,0xFF)*light
-                        RasterizeTriangle(Vert_PX[i1],Vert_PY[i1],Vert_PZ[i1], Vert_PX[i2],Vert_PY[i2],Vert_PZ[i2], Vert_PX[i3],Vert_PY[i3],Vert_PZ[i3], 0xFF000000+bit.lshift(r,16)+bit.lshift(g,8)+b)
-                    end
-                end
-            end
-        end
+        if isZenMode and i ~= TargetSlide then goto continue_slides end
+        DrawMesh(Pool_Solid[i], true, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
         ::continue_slides::
     end
     if not isZenMode then
         for i = NumSlides, Pool_Solid_Count - 1 do
-            local id = Pool_Solid[i]
-            local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
-            local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
-            if cz_center + Obj_Radius[id] < 0.1 then goto continue_props end
-            local cx_center = dx*Cam_RTX + dz*Cam_RTZ
-            local cy_center = dx*Cam_UPX + dy*Cam_UPY + dz*Cam_UPZ
-            local depth = max(0.1, cz_center)
-            if abs(cx_center) <= (HALF_W*depth/Cam_FOV)+Obj_Radius[id] and abs(cy_center) <= (HALF_H*depth/Cam_FOV)+Obj_Radius[id] then
-                local rx, rz = Obj_RTX[id], Obj_RTZ[id]
-                local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
-                local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-                local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-                local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
-                for v = 0, vCount - 1 do
-                    local idx = vStart + v
-                    local lx, ly, lz = Vert_LX[idx], Vert_LY[idx], Vert_LZ[idx]
-                    local wx, wy, wz = ox+lx*rx+ly*ux+lz*fx, oy+ly*uy+lz*fy, oz+lx*rz+ly*uz+lz*fz
-                    Vert_CX[idx], Vert_CY[idx], Vert_CZ[idx] = wx, wy, wz
-                    local vdx, vdy, vdz = wx-cpx, wy-cpy, wz-cpz
-                    local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
-                    if cz < 0.1 then Vert_Valid[idx] = false else
-                        local f = Cam_FOV / cz
-                        Vert_PX[idx] = HALF_W + (vdx*Cam_RTX + vdz*Cam_RTZ) * f
-                        Vert_PY[idx] = HALF_H + (vdx*Cam_UPX + vdy*Cam_UPY + vdz*Cam_UPZ) * f
-                        Vert_PZ[idx] = cz * 1.004
-                        Vert_Valid[idx] = true
-                    end
-                end
-                local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
-                for t = 0, tCount - 1 do
-                    local idx = tStart + t
-                    local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
-                    if Vert_Valid[i1] and Vert_Valid[i2] and Vert_Valid[i3] then
-                        local winding = (Vert_PX[i2]-Vert_PX[i1])*(Vert_PY[i3]-Vert_PY[i1])-(Vert_PY[i2]-Vert_PY[i1])*(Vert_PX[i3]-Vert_PX[i1])
-                        if winding < 0 then
-                            local wx1, wy1, wz1 = Vert_CX[i1], Vert_CY[i1], Vert_CZ[i1]
-                            local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
-                            local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
-                            local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
-                            local light = max(0.2, min(1.0, (nx*0.5 + ny*1.0 + nz*0.5) / sqrt(nx*nx+ny*ny+nz*nz)))
-                            local tc = Tri_Color[idx]
-                            local r, g, b = bit.band(bit.rshift(tc,16),0xFF)*light, bit.band(bit.rshift(tc,8),0xFF)*light, bit.band(tc,0xFF)*light
-                            RasterizeTriangle(Vert_PX[i1],Vert_PY[i1],Vert_PZ[i1], Vert_PX[i2],Vert_PY[i2],Vert_PZ[i2], Vert_PX[i3],Vert_PY[i3],Vert_PZ[i3], 0xFF000000+bit.lshift(r,16)+bit.lshift(g,8)+b)
-                        end
-                    end
-                end
-            end
-            ::continue_props::
+            DrawMesh(Pool_Solid[i], false, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
         end
     end
 end
@@ -209,28 +231,18 @@ local function RenderText()
     if NumSlides == 0 or not presentationMode then return end
     local i = TargetSlide
     local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
-
-    local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i] -- The gang's all here!
+    local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]
     local cache = SlideTitles[i]
     local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
     local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
-
-    -- 1. True 3D Dot Product (calculates visibility opacity based on real 3D angle)
     local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
     local abs_dot = abs(dot)
     if abs_dot < 0.707 then return end
-
     local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
-
-    -- 2. True 3D Spatial Offset (pushes the text out along the pitched normal vector)
     local tdx = (sx + bnx * t_off) - Cam_X
     local tdy = (sy + bny * t_off) - Cam_Y
     local tdz = (sz + bnz * t_off) - Cam_Z
-
-    -- 3. True 3D Depth Projection
     local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
-
-
     if depth < 10 or depth > 8000 then return end
     local alpha_close = max(0, min(1, (depth-100)/300))
     local alpha_angle = min(1, (abs_dot-0.707)*5)
@@ -246,22 +258,13 @@ local function RenderText()
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
 function Renderer.DrawFrame()
-    -- Only run the heavy CPU math if main.lua hasn't baked the snapshot yet
     if not snapshotBaked then
         Render3DScene()
         RenderText()
         ScreenImage:replacePixels(ScreenBuffer)
     end
-
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
-    love.graphics.setBlendMode("alpha")
-
-    love.graphics.setFont(Font_UI)
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
-    love.graphics.print(isMouseCaptured and "MOUSE LOCKED (J to unlock)" or "MOUSE FREE (J to lock)", 10, 30)
 end
-
 return Renderer

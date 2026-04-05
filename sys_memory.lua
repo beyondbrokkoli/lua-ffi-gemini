@@ -56,6 +56,7 @@ Tri_V1 = ffi.new("int[?]", MAX_TOTAL_TRIS)
 Tri_V2 = ffi.new("int[?]", MAX_TOTAL_TRIS)
 Tri_V3 = ffi.new("int[?]", MAX_TOTAL_TRIS)
 Tri_Color = ffi.new("uint32_t[?]", MAX_TOTAL_TRIS)
+Tri_BaseLight = ffi.new("float[?]", MAX_TOTAL_TRIS)
 B_MinX, B_MinY, B_MinZ = -8000, -4000, -2000
 B_MaxX, B_MaxY, B_MaxZ = 8000, 4000, 15000
 Sphere_X = ffi.new("float[?]", MAX_SLIDES)

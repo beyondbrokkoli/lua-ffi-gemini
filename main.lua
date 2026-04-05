@@ -14,6 +14,19 @@ isZenMode = false
 snapshotBaked = false
 local PRESENTATION_ZOOM = 1.0
 local CAM_PADDING = 200
+local scanlineCanvas = nil
+local function GetScanlines()
+    if not scanlineCanvas then
+        scanlineCanvas = love.graphics.newCanvas(love.graphics.getWidth(), love.graphics.getHeight())
+        love.graphics.setCanvas(scanlineCanvas)
+        love.graphics.setColor(0, 0, 0, 0.3)
+        for y = 0, love.graphics.getHeight(), 3 do
+            love.graphics.rectangle("fill", 0, y, love.graphics.getWidth(), 1)
+        end
+        love.graphics.setCanvas()
+    end
+    return scanlineCanvas
+end
 local function lerp(a, b, t) return a + (b - a) * t end
 local function lerpAngle(a, b, t)
     local diff = (b - a + pi) % (pi * 2) - pi
@@ -330,27 +343,20 @@ function love.load()
         Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
         startX, startY, startZ, startYaw, startPitch = tX, tY, tZ, tYaw, tPitch
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
-        -- Replace the prop spawning section in love.load()
         InitSlideTextCache()
-
-        -- Global Background
-        SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 40)
-        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 300)
-
-        -- Per-Slide Specialty Props
+        SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 60)
+        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 400)
         SlidesInternal.SpawnHeroDonut(slideAPI, 0)
-        SlidesInternal.SpawnSatelliteRing(slideAPI, 1, 12)
-        SlidesInternal.SpawnChaosCluster(slideAPI, 2, 40)
-        SlidesInternal.CrystalCompanion(slideAPI, NumSlides, 15) -- Crystals for all
-        SlidesInternal.SpawnGeometricStorm(slideAPI, 4, 30)
-        SlidesInternal.SpawnParticleAccelerator(slideAPI, 5, 60)
-        SlidesInternal.SpawnSatelliteRing(slideAPI, 6, 8)
-        SlidesInternal.SpawnHeroDonut(slideAPI, 7)
-        SlidesInternal.SpawnChaosCluster(slideAPI, 8, 25)
-        SlidesInternal.SpawnDataSpikes(slideAPI, 100) -- Deep space clutter
+        SlidesInternal.SpawnSatelliteRing(slideAPI, 1, 16)
+        SlidesInternal.CrystalCompanion(slideAPI, 3, 30)
+        SlidesInternal.SpawnGeometricStorm(slideAPI, 3, 45)
+        SlidesInternal.SpawnParticleAccelerator(slideAPI, 4, 80)
+        SlidesInternal.SpawnSatelliteRing(slideAPI, 8, 24)
+        SlidesInternal.SpawnChaosCluster(slideAPI, 9, 50)
         BuildCollisionPools()
         UpdateCameraBasis()
     end
+    scanlineCanvas = GetScanlines()
 end
 function love.keypressed(key)
     if not presentationMode and (key == "p" or key == "space") then
@@ -361,6 +367,8 @@ function love.keypressed(key)
         presentationMode = true
     elseif key == "i" or key == "u" then
         presentationMode = false
+        isZenMode = false
+        CAM_PADDING = 200
         if key == "u" then Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch end
     elseif presentationMode and (key == "space" or key == "backspace") then
         startX, startY, startZ, startYaw, startPitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
@@ -376,20 +384,19 @@ function love.keypressed(key)
     elseif key == "v" then TriggerVortex()
     elseif key == "g" then TriggerGravity()
     elseif key == "z" then
+        if not presentationMode then return end
         isZenMode = not isZenMode
-        if presentationMode then
-            CAM_PADDING = isZenMode and 0 or 200
-            updateTargetSide()
-            if isSettled then
-                Cam_X, Cam_Y, Cam_Z = tX, tY, tZ
-                Cam_Yaw, Cam_Pitch = tYaw, tPitch
-                snapshotBaked = false
-            else
-                startX, startY, startZ = Cam_X, Cam_Y, Cam_Z
-                startYaw, startPitch = Cam_Yaw, Cam_Pitch
-            end
-            InitSlideTextCache()
+        CAM_PADDING = isZenMode and 0 or 200
+        updateTargetSide()
+        if isSettled then
+            Cam_X, Cam_Y, Cam_Z = tX, tY, tZ
+            Cam_Yaw, Cam_Pitch = tYaw, tPitch
+            snapshotBaked = false
+        else
+            startX, startY, startZ = Cam_X, Cam_Y, Cam_Z
+            startYaw, startPitch = Cam_Yaw, Cam_Pitch
         end
+        InitSlideTextCache()
     elseif key == "escape" then love.event.quit()
     end
 end
@@ -465,6 +472,15 @@ function love.draw()
         return
     end
     Renderer.DrawFrame()
+    love.graphics.setBlendMode("alpha")
+    if not isZenMode then
+        love.graphics.draw(scanlineCanvas, 0, 0)
+    end
+    love.graphics.setFont(Font_UI)
+    love.graphics.setColor(0, 1, 0.5, 1)
+    love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
+    local modeText = "MODE: "
+    if isZenMode then modeText = modeText .. "ZEN (CPU HIBERNATION)" else modeText = modeText .. "ACTIVE (PHYSICS ON)" end
     if presentationMode and isSettled and isZenMode and arrivalTimer >= 0.3 then
         snapshotBaked = true
     end
