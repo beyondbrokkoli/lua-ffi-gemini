@@ -105,7 +105,7 @@ function Renderer.BakeStaticLighting()
         end
     end
 end
-local function DrawMesh(id, is_slide, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
+local function DrawSlide(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
     local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
     local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
     if cz_center + Obj_Radius[id] < 0.1 then return end
@@ -149,18 +149,66 @@ local function DrawMesh(id, is_slide, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x,
                 local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
                 local len = sqrt(nx*nx+ny*ny+nz*nz)
                 if len == 0 then len = 1 end
-                local base_light
-                if is_slide then
-                    base_light = Tri_BaseLight[idx]
-                else
-                    base_light = max(0.2, min(1.0, abs((nx*0.5 + ny*1.0 + nz*0.5) / len)))
-                end
+                local base_light = Tri_BaseLight[idx]
                 local headlamp = abs(nx*cfw_x + ny*cfw_y + nz*cfw_z) / len
                 local final_light = max(base_light, headlamp)
-                if is_slide and not isSettled then
-                    local wave = (math.sin(wy1 * 0.01 + love.timer.getTime() * 10) + 1) * 0.5
-                    final_light = final_light * (0.5 + wave * 0.5)
-                end
+                if not isSettled then local wave = (math.sin(wy1 * 0.01 + love.timer.getTime() * 10) + 1) * 0.5
+                    final_light = final_light * (0.5 + wave * 0.5) end
+                local tc = Tri_Color[idx]
+                local r = bit.band(bit.rshift(tc,16),0xFF) * final_light
+                local g = bit.band(bit.rshift(tc,8),0xFF) * final_light
+                local b = bit.band(tc,0xFF) * final_light
+                RasterizeTriangle(px1,py1,pz1, px2,py2,pz2, px3,py3,pz3, 0xFF000000+bit.lshift(r,16)+bit.lshift(g,8)+b)
+            end
+        end
+    end
+end
+local function DrawProp(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
+    local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
+    local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
+    if cz_center + Obj_Radius[id] < 0.1 then return end
+    local cx_center = dx*crt_x + dz*crt_z
+    local cy_center = dx*cup_x + dy*cup_y + dz*cup_z
+    local depth = max(0.1, cz_center)
+    if abs(cx_center) > (HALF_W*depth/Cam_FOV)+Obj_Radius[id] or abs(cy_center) > (HALF_H*depth/Cam_FOV)+Obj_Radius[id] then return end
+    local rx, rz = Obj_RTX[id], Obj_RTZ[id]
+    local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
+    local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+    local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+    local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
+    for v = 0, vCount - 1 do
+        local idx = vStart + v
+        local lx, ly, lz = Vert_LX[idx], Vert_LY[idx], Vert_LZ[idx]
+        local wx, wy, wz = ox+lx*rx+ly*ux+lz*fx, oy+ly*uy+lz*fy, oz+lx*rz+ly*uz+lz*fz
+        Vert_CX[idx], Vert_CY[idx], Vert_CZ[idx] = wx, wy, wz
+        local vdx, vdy, vdz = wx-cpx, wy-cpy, wz-cpz
+        local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
+        if cz < 0.1 then Vert_Valid[idx] = false else
+            local f = Cam_FOV / cz
+            Vert_PX[idx] = HALF_W + (vdx*crt_x + vdz*crt_z) * f
+            Vert_PY[idx] = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
+            Vert_PZ[idx] = cz * 1.004
+            Vert_Valid[idx] = true
+        end
+    end
+    local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
+    for t = 0, tCount - 1 do
+        local idx = tStart + t
+        local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
+        if Vert_Valid[i1] and Vert_Valid[i2] and Vert_Valid[i3] then
+            local px1, py1, pz1 = Vert_PX[i1], Vert_PY[i1], Vert_PZ[i1]
+            local px2, py2, pz2 = Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2]
+            local px3, py3, pz3 = Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3]
+            local winding = (px2-px1)*(py3-py1) - (py2-py1)*(px3-px1)
+            if winding < 0 then
+                local wx1, wy1, wz1 = Vert_CX[i1], Vert_CY[i1], Vert_CZ[i1]
+                local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
+                local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
+                local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
+                local len = sqrt(nx*nx+ny*ny+nz*nz)
+                if len == 0 then len = 1 end
+                local sun_dot = (nx*0.577 + ny*0.577 + nz*0.577) / len
+                local final_light = max(0.15, min(1.0, sun_dot))
                 local tc = Tri_Color[idx]
                 local r = bit.band(bit.rshift(tc,16),0xFF) * final_light
                 local g = bit.band(bit.rshift(tc,8),0xFF) * final_light
@@ -180,12 +228,12 @@ local function Render3DScene()
     local cup_x, cup_y, cup_z = Cam_UPX, Cam_UPY, Cam_UPZ
     for i = 0, NumSlides - 1 do
         if isZenMode and i ~= TargetSlide then goto continue_slides end
-        DrawMesh(Pool_Solid[i], true, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
+        DrawSlide(Pool_Solid[i], cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
         ::continue_slides::
     end
     if not isZenMode then
         for i = NumSlides, Pool_Solid_Count - 1 do
-            DrawMesh(Pool_Solid[i], false, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
+            DrawProp(Pool_Solid[i], cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
         end
     end
 end

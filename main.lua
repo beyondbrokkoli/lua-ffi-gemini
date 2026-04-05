@@ -355,6 +355,7 @@ function love.load()
         SlidesInternal.SpawnChaosCluster(slideAPI, 9, 50)
         BuildCollisionPools()
         UpdateCameraBasis()
+        Renderer.BakeStaticLighting()
     end
     scanlineCanvas = GetScanlines()
 end
