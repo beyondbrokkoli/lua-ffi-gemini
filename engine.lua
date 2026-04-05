@@ -71,4 +71,3 @@ function Engine.DrawTerminal(ScreenPtr, CANVAS_W, CANVAS_H)
     end
 end
 return Engine
-
