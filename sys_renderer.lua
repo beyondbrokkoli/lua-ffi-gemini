@@ -93,7 +93,7 @@ function Renderer.BakeStaticLighting()
             local lx_n, ly_n, lz_n = lx/l_len, ly/l_len, lz/l_len
 
             -- THE FIX: Removed math.abs() so the bottom edges actually fall into shadow!
-            local dot_val = math.max(0, nx_n*lx_n + ny_n*ly_n + nz_n*lz_n) * 1.2 -- modified 0 to 0.5
+            local dot_val = math.max(0, nx_n*lx_n + ny_n*ly_n + nz_n*lz_n) * 1.2
 
             Tri_BaseLight[idx] = math.max(0.2, math.min(1.0, dot_val))
         end
