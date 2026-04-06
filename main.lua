@@ -222,7 +222,7 @@ function love.update(dt)
             if EngineState ~= STATE_CINEMATIC and EngineState ~= STATE_FREEFLY then
                 Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
             end
-            InitSlideTextCache()
+            SysText.InitSlideTextCache()
             pendingResize = false
         end
         return

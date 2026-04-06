@@ -27,9 +27,9 @@ local function ParseSlideLine(rawText, fonts)
     return { { text = cleanText, font = currentFont, align = currentAlign } }
 end
 
-local function BakeSlideText(i, titleText, content, w, h, isZenMode)
+local function BakeSlideText(i, titleText, content, w, h, isZen)
     local distScale = max(h, w * (CANVAS_H / CANVAS_W))
-    local pad = isZenMode and 0 or 200
+    local pad = isZen and 0 or 200
     local optDist = (distScale * Cam_FOV) / CANVAS_H * 1.0 + pad
     local text_depth = optDist - (Box_HT[i] + 5)
     local optimal_scale = (Cam_FOV / text_depth)
