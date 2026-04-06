@@ -239,31 +239,13 @@ end
 end
 end
 function love.load()
-local displayCount = love.window.getDisplayCount()
-local primaryIndex = 1
-for i = 1, displayCount do
-local x, y = love.window.getPosition(i)
-if x == 0 and y == 0 then
-primaryIndex = i
-break
-end
-end
-local modes = love.window.getFullscreenModes(primaryIndex)
-local windowW, windowH = love.window.getDesktopDimensions(primaryIndex)
-if #modes > 0 then
-windowW = modes[1].width
-windowH = modes[1].height
-end
-local targetOS = love.system.getOS()
-local fsType = (targetOS == "Windows") and "exclusive" or "desktop"
-love.window.setMode(windowW, windowH, {
+love.window.setMode(0, 0, {
 fullscreen = true,
-fullscreentype = fsType,
-display = primaryIndex,
-vsync = 1,
-centered = true
+fullscreentype = "desktop",
+highdpi = true,
+vsync = 1
 })
-ReinitBuffers(windowW, windowH)
+ReinitBuffers()
 love.mouse.setRelativeMode(isMouseCaptured)
 Font_UI = love.graphics.newFont(14)
 local sceneState = Engine.Boot(slideAPI, "scene.json")
@@ -373,7 +355,7 @@ dt = math.min(dt, 0.033)
 if pendingResize then
 resizeTimer = resizeTimer - dt
 if resizeTimer <= 0 then
-ReinitBuffers(love.graphics.getWidth(), love.graphics.getHeight())
+ReinitBuffers()
 updateTargetSide()
 if presentationMode and isSettled then
 Cam_X, Cam_Y, Cam_Z = tX, tY, tZ

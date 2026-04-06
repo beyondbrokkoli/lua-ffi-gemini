@@ -110,9 +110,10 @@ isSettled = true
 isDeparting = false
 departTimer = 0
 pendingCacheRebuild = false
-function ReinitBuffers(w, h)
-CANVAS_W, CANVAS_H = w, h
-HALF_W, HALF_H = w * 0.5, h * 0.5
+function ReinitBuffers()
+local pixel_w, pixel_h = love.graphics.getPixelDimensions()
+CANVAS_W, CANVAS_H = pixel_w, pixel_h
+HALF_W, HALF_H = pixel_w * 0.5, pixel_h * 0.5
 ScreenBuffer = love.image.newImageData(CANVAS_W, CANVAS_H)
 ScreenImage = love.graphics.newImage(ScreenBuffer)
 ScreenPtr = ffi.cast("uint32_t*", ScreenBuffer:getPointer())
