@@ -1,16 +1,9 @@
 local ffi = require("ffi")
 local bit = require("bit")
+local SysText = require("sys_text")
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local sqrt = math.sqrt
 local Renderer = {}
-local star_x, star_y, star_z, star_c = {}, {}, {}, {}
-for i = 1, 1000 do
-star_x[i] = (math.random() - 0.5) * 4000
-star_y[i] = (math.random() - 0.5) * 4000
-star_z[i] = (math.random() - 0.5) * 4000
-local brightness = math.random(50, 200)
-star_c[i] = bit.bor(0xFF000000, bit.lshift(brightness, 16), bit.lshift(brightness, 8), brightness)
-end
 local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
 if y1 > y2 then x1,x2 = x2,x1
 y1,y2 = y2,y1
@@ -53,26 +46,6 @@ for x = start_x, end_x do
 if cz < ZBuffer[off + x] then ZBuffer[off + x] = cz
 ScreenPtr[off + x] = shadedColor end
 cz = cz + z_step
-end
-end
-end
-end
-local function RenderStars()
-local cx, cy, cz = Cam_X, Cam_Y, Cam_Z
-local fwx, fwy, fwz = Cam_FWX, Cam_FWY, Cam_FWZ
-local rtx, rtz = Cam_RTX, Cam_RTZ
-local upx, upy, upz = Cam_UPX, Cam_UPY, Cam_UPZ
-for i = 1, 1000 do
-local dx = (star_x[i] - cx) % 4000 - 2000
-local dy = (star_y[i] - cy) % 4000 - 2000
-local dz = (star_z[i] - cz) % 4000 - 2000
-local depth = dx*fwx + dy*fwy + dz*fwz
-if depth > 10 then
-local px = HALF_W + (dx*rtx + dz*rtz) * (Cam_FOV / depth)
-local py = HALF_H + (dx*upx + dy*upy + dz*upz) * (Cam_FOV / depth)
-if px >= 0 and px < CANVAS_W and py >= 0 and py < CANVAS_H then
-local off = floor(py) * CANVAS_W + floor(px)
-if depth < ZBuffer[off] then ScreenPtr[off] = star_c[i] end
 end
 end
 end
@@ -152,8 +125,10 @@ if len == 0 then len = 1 end
 local base_light = Tri_BaseLight[idx]
 local headlamp = abs(nx*cfw_x + ny*cfw_y + nz*cfw_z) / len
 local final_light = max(base_light, headlamp)
-if not isSettled then local wave = (math.sin(wy1 * 0.01 + love.timer.getTime() * 10) + 1) * 0.5
-final_light = final_light * (0.5 + wave * 0.5) end
+if EngineState == STATE_CINEMATIC then
+local wave = (math.sin(wy1 * 0.01 + love.timer.getTime() * 10) + 1) * 0.5
+final_light = final_light * (0.5 + wave * 0.5)
+end
 local tc = Tri_Color[idx]
 local r = bit.band(bit.rshift(tc,16),0xFF) * final_light
 local g = bit.band(bit.rshift(tc,8),0xFF) * final_light
@@ -225,12 +200,13 @@ local cpx, cpy, cpz = Cam_X, Cam_Y, Cam_Z
 local cfw_x, cfw_y, cfw_z = Cam_FWX, Cam_FWY, Cam_FWZ
 local crt_x, crt_z = Cam_RTX, Cam_RTZ
 local cup_x, cup_y, cup_z = Cam_UPX, Cam_UPY, Cam_UPZ
+local isZen = (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED)
 for i = 0, NumSlides - 1 do
-if isZenMode and i ~= TargetSlide then goto continue_slides end
+if isZen and i ~= TargetSlide then goto continue_slides end
 DrawSlide(Pool_Solid[i], cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
 ::continue_slides::
 end
-if not isZenMode then
+if not isZen then
 for i = NumSlides, Pool_Solid_Count - 1 do
 DrawProp(Pool_Solid[i], cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
 end
@@ -275,11 +251,11 @@ end
 end
 end
 local function RenderText()
-if NumSlides == 0 or not presentationMode then return end
+if NumSlides == 0 or EngineState == STATE_FREEFLY then return end
 local i = TargetSlide
 local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
 local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]
-local cache = SlideTitles[i]
+local cache = SysText.GetCache(i, EngineState)
 local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
 local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
 local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
@@ -294,16 +270,7 @@ if depth < 10 or depth > 8000 then return end
 local alpha_close = max(0, min(1, (depth-100)/300))
 local alpha_angle = min(1, (abs_dot-0.707)*5)
 local alpha_far = max(0, min(1, (8000-depth)/2000))
-local final_alpha = alpha_close * alpha_angle * alpha_far
-local fade_mult = 1.0
-if isDeparting then
-fade_mult = max(0, departTimer / 0.15)
-elseif not isSettled then
-fade_mult = 0
-else
-fade_mult = min(1.0, arrivalTimer / 0.3)
-end
-final_alpha = final_alpha * fade_mult
+local final_alpha = alpha_close * alpha_angle * alpha_far * SysText.Alpha
 if final_alpha <= 0.01 then return end
 local renderX, renderY = HALF_W, HALF_H
 local current_perspective = (Cam_FOV / depth)

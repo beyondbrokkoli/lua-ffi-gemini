@@ -1,5 +1,5 @@
 local ffi = require("ffi")
-MAX_SLIDES = 100
+MAX_SLIDES = 128
 MAX_OBJS = 2048
 NumObjects = 0
 NumTotalVerts, NumTotalTris = 0, 0
@@ -106,25 +106,32 @@ activeSlide = 0
 NumSlides = 0
 manifest = {}
 isMouseCaptured = true
-presentationMode = true
+
 globalTimer = 0
 Font_Slide = nil
 Font_UI = nil
 SlideTitles = {}
--- THE NEW 3-PHASE STATE MACHINE VARIABLES
-lerpT, arrivalTimer = 0, 0
-isSettled = true
-isDeparting = false
-departTimer = 0
-pendingCacheRebuild = false
+-- THE FINITE STATE MACHINE (FSM)
+STATE_FREEFLY    = 0
+STATE_CINEMATIC  = 1
+STATE_PRESENT    = 2
+STATE_ZEN        = 3
+STATE_HIBERNATED = 4
+
+EngineState = STATE_PRESENT
+TargetState = STATE_PRESENT
+
+lerpT = 0
+pendingResize = false
+resizeTimer = 0
 
 function ReinitBuffers()
     -- ALWAYS query the true physical pixels, ignoring OS display scaling!
     local pixel_w, pixel_h = love.graphics.getPixelDimensions()
-    
+
     CANVAS_W, CANVAS_H = pixel_w, pixel_h
     HALF_W, HALF_H = pixel_w * 0.5, pixel_h * 0.5
-    
+
     ScreenBuffer = love.image.newImageData(CANVAS_W, CANVAS_H)
     ScreenImage = love.graphics.newImage(ScreenBuffer)
     ScreenPtr = ffi.cast("uint32_t*", ScreenBuffer:getPointer())

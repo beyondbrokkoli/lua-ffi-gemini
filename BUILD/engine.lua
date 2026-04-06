@@ -21,7 +21,32 @@ local cp, sp = math.cos(pitch), math.sin(pitch)
 local radius = 7000
 return (sy * cp) * radius, sp * radius, (cy * cp) * radius, yaw, pitch
 end
-local ActiveTopology = Topology_Panopticon
+local function Topology_FullDome(id)
+local SLIDES_PER_RING = 16
+local yaw = (id % SLIDES_PER_RING) * (math.pi / 8)
+local row = math.floor(id / SLIDES_PER_RING)
+local pitch = (3 - row) * 0.35
+local radius = 7500
+local cy, sy = math.cos(yaw), math.sin(yaw)
+local cp, sp = math.cos(pitch), math.sin(pitch)
+local x = (sy * cp) * radius
+local y = sp * radius
+local z = (cy * cp) * radius
+return x, y, z, yaw, pitch
+end
+local function Topology_Cylinder(id)
+local SLIDES_PER_RING = 16
+local yaw = (id % SLIDES_PER_RING) * (math.pi / 8)
+local row = math.floor(id / SLIDES_PER_RING)
+local RADIUS = 7500
+local ROW_HEIGHT = 2000
+local y = row * ROW_HEIGHT
+local x = math.sin(yaw) * RADIUS
+local z = math.cos(yaw) * RADIUS
+local pitch = 0
+return x, y, z, yaw, pitch
+end
+local ActiveTopology = Topology_Cylinder
 function Engine.Boot(raw_api, json_path)
 Engine.api = SlideGuard.ProtectAPI(raw_api)
 local content, sizeOrErr = love.filesystem.read(json_path)
