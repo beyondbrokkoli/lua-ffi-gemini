@@ -1,6 +1,6 @@
 ### Windows 
 If you have [LÖVE](https://love2d.org/) installed, you can launch the presentation without ever opening a terminal.  
-Just follow these two steps for a perfect, click-and-play setup.
+Just follow these two steps for a click-and-play setup.
 
 By default, Windows 11 applies display scaling that makes the engine's text look blurry.  
 To force pixel-perfect, razor-sharp typography, you must override the OS:
