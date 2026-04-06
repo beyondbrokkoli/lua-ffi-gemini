@@ -2,7 +2,7 @@ local json = require("dkjson") -- Ensure dkjson is in your path
 
 -- CONFIGURATION
 local SLIDES_PER_ROW = 16
-local TOTAL_ROWS = 7
+local TOTAL_ROWS = 4
 local RADIUS = 7500
 local ROW_HEIGHT = 2200 -- Slightly more vertical breathing room
 local FILENAME = "scene.json"
