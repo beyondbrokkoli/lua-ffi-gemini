@@ -57,6 +57,96 @@ local function ParseSlideLine(rawText, fonts)
     return { { text = cleanText, font = currentFont, align = currentAlign } }
 end
 local function InitSlideTextCache()
+    -- 1. CLEAN UP THE OLD CACHE FIRST
+    if SlideTitles then
+        for i, cache in pairs(SlideTitles) do
+            if cache._keepAlive then
+                -- Explicitly tell LÖVE to free the C-side memory
+                cache._keepAlive:release()
+            end
+            -- If you store the canvas anywhere, release it too
+        end
+    end
+
+    SlideTitles = {}
+
+    for i = 0, NumSlides - 1 do
+        local node = manifest[i]
+        local titleText = (node and node.text) or ("SLIDE " .. tostring(i + 1))
+        local w, h = Box_HW[i] * 2, Box_HH[i] * 2
+        local distScale = max(h, w * (CANVAS_H / CANVAS_W))
+        local optDist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + CAM_PADDING
+        local text_depth = optDist - (Box_HT[i] + 5)
+        local optimal_scale = (Cam_FOV / text_depth)
+        local fonts = {
+            title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))),
+            head = love.graphics.newFont(max(8, floor((h * 0.08) * optimal_scale))),
+            body = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
+        }
+        local virtW = max(1, floor(w * optimal_scale))
+        local virtH = max(1, floor(h * optimal_scale))
+        local giantCanvas = love.graphics.newCanvas(virtW, virtH)
+        love.graphics.setCanvas(giantCanvas)
+        love.graphics.clear(0, 0, 0, 0)
+        love.graphics.setColor(1, 1, 1, 1)
+        local currentY = floor(virtH * 0.05)
+        local paddingX = floor(virtW * 0.05)
+        local maxTextWidth = virtW - (paddingX * 2)
+        local bottomLimit = virtH - floor(virtH * 0.12)
+        love.graphics.setFont(fonts.title)
+        love.graphics.printf(titleText, paddingX, currentY, maxTextWidth, "center")
+        currentY = currentY + fonts.title:getHeight() + floor(virtH * 0.02)
+        if node and node.content then
+            for _, s in ipairs(node.content) do
+                if s ~= "" then
+                    local columns = ParseSlideLine(s, fonts)
+                    local numCols = #columns
+                    local colWidth = floor(maxTextWidth / numCols)
+                    local maxRowHeight = 0
+                    for colIdx, colData in ipairs(columns) do
+                        love.graphics.setFont(colData.font)
+                        local xOffset = paddingX + ((colIdx - 1) * colWidth)
+                        local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0)
+                        local _, wrappedLines = colData.font:getWrap(colData.text, colPrintWidth)
+                        local lineY = currentY
+                        local colHeight = 0
+                        for lIdx, lineStr in ipairs(wrappedLines) do
+                            if (lineY + colData.font:getHeight()) > bottomLimit then
+                                local chopped = lineStr:sub(1, -4) .. "..."
+                                love.graphics.printf(chopped, xOffset, lineY, colPrintWidth, colData.align)
+                                colHeight = colHeight + colData.font:getHeight()
+                                break
+                            else
+                                love.graphics.printf(lineStr, xOffset, lineY, colPrintWidth, colData.align)
+                                lineY = lineY + colData.font:getHeight()
+                                colHeight = colHeight + colData.font:getHeight()
+                            end
+                        end
+                        if colHeight > maxRowHeight then maxRowHeight = colHeight end
+                    end
+                    currentY = currentY + maxRowHeight + floor(virtH * 0.005)
+                else
+                    currentY = currentY + fonts.body:getHeight()
+                end
+            end
+        end
+        love.graphics.setCanvas()
+        local imgData = giantCanvas:newImageData()
+        SlideTitles[i] = {
+            ptr = ffi.cast("uint32_t*", imgData:getPointer()),
+            w = virtW, h = virtH,
+            _keepAlive = imgData,
+            text_z_offset = (Box_HT[i] + 5),
+            opt_scale = optimal_scale
+        }
+        -- 2. RELEASE THE TEMPORARY CANVAS
+        -- giantCanvas is no longer needed after making the ImageData
+        giantCanvas:release()
+    end
+    -- 3. FORCE A GC CYCLE (Optional but recommended after heavy FFI churn)
+    collectgarbage("collect")
+end
+local function OLD_InitSlideTextCache()
     SlideTitles = {}
     for i = 0, NumSlides - 1 do
         local node = manifest[i]

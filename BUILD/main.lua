@@ -239,12 +239,6 @@ end
 end
 end
 function love.load()
-love.window.setMode(0, 0, {
-fullscreen = true,
-fullscreentype = "desktop",
-highdpi = true,
-vsync = 1
-})
 ReinitBuffers()
 love.mouse.setRelativeMode(isMouseCaptured)
 Font_UI = love.graphics.newFont(14)
