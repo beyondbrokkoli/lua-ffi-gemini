@@ -89,18 +89,17 @@ function Renderer.BakeStaticLighting()
             local l_len = math.sqrt(lx*lx + ly*ly + lz*lz)
             if l_len == 0 then l_len = 1 end
 
-            -- Normalize both vectors for accurate light bouncing
             local nx_n, ny_n, nz_n = nx/len, ny/len, nz/len
             local lx_n, ly_n, lz_n = lx/l_len, ly/l_len, lz/l_len
 
-            -- Run the dot product. We multiply by 1.2 to let it run "hot"
-            -- and mimic the punchy, high-contrast look of the props!
-            local dot_val = math.abs(nx_n*lx_n + ny_n*ly_n + nz_n*lz_n) * 1.2
+            -- THE FIX: Removed math.abs() so the bottom edges actually fall into shadow!
+            local dot_val = math.max(0, nx_n*lx_n + ny_n*ly_n + nz_n*lz_n) * 1.2
 
             Tri_BaseLight[idx] = math.max(0.2, math.min(1.0, dot_val))
         end
     end
 end
+
 local function DrawSlide(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
     local dx, dy, dz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
     local cz_center = dx*cfw_x + dy*cfw_y + dz*cfw_z
@@ -208,8 +207,16 @@ local function DrawProp(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cu
                 local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
                 local len = sqrt(nx*nx+ny*ny+nz*nz); if len == 0 then len = 1 end
 
-                -- THE ORIGINAL VIBECODED LAMBERTIAN LIGHTING
-                local final_light = max(0.2, min(1.0, (nx*0.5 - ny*1.0 + nz*0.5) / len))
+                -- 1. Get the vector FROM the prop TO the Dome Light (0, -2000, 0)
+                local lx, ly, lz = 0 - wx1, -2000 - wy1, 0 - wz1
+                local l_len = sqrt(lx*lx + ly*ly + lz*lz); if l_len == 0 then l_len = 1 end
+
+                -- 2. Calculate the normalized dot product
+                local raw_dot = max(0, (nx/len)*(lx/l_len) + (ny/len)*(ly/l_len) + (nz/len)*(lz/l_len))
+
+                -- 3. EXPONENT & MULTIPLIER: Square it for the spotlight effect, boost wattage to 1.5
+                -- 4. FLOOR: Hard 5% (0.05) ambient shadow floor!
+                local final_light = max(0.05, min(1.0, (raw_dot ^ 2) * 1.5))
 
                 local tc = Tri_Color[idx]
                 local r = bit.band(bit.rshift(tc,16),0xFF) * final_light

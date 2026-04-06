@@ -69,12 +69,12 @@ local process_manifest = {
     ["engine.lua"] = "BUILD/engine.lua",
     ["slide_guard.lua"] = "BUILD/slide_guard.lua",
     ["slides_internal.lua"] = "BUILD/slides_internal.lua",
-    ["build_orchestrator.lua"] = "BUILD/build_orchestrator.lua",
-    ["rebuild_orchestrator.lua"] = "BUILD/rebuild_orchestrator.lua",
-    ["generate_scene.lua"] = "BUILD/generate_scene.lua",
+--    ["build_orchestrator.lua"] = "BUILD/build_orchestrator.lua",
+--    ["rebuild_orchestrator.lua"] = "BUILD/rebuild_orchestrator.lua",
+--    ["generate_scene.lua"] = "BUILD/generate_scene.lua",
     ["sys_text.lua"] = "BUILD/sys_text.lua",
     ["sys_factory.lua"] = "BUILD/sys_factory.lua",
-    ["conf.lua"] = "BUILD/conf.lua"
+--    ["conf.lua"] = "BUILD/conf.lua"
 
 }
 local raw_manifest = {
