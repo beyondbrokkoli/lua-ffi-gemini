@@ -50,6 +50,7 @@ local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
         end
     end
 end
+
 function Renderer.BakeStaticLighting()
     for i = 0, NumSlides - 1 do
         local id = Pool_Solid[i]
@@ -58,6 +59,7 @@ function Renderer.BakeStaticLighting()
         local rx, rz = Obj_RTX[id], Obj_RTZ[id]
         local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
         local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+
         for t = 0, tCount - 1 do
             local idx = tStart + t
             local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
@@ -65,16 +67,37 @@ function Renderer.BakeStaticLighting()
                 local lx, ly, lz = Vert_LX[vi], Vert_LY[vi], Vert_LZ[vi]
                 return lx*rx+ly*ux+lz*fx, ly*uy+lz*fy, lx*rz+ly*uz+lz*fz
             end
+
+            -- Get global coordinates of the triangle
             local wx1, wy1, wz1 = getW(i1)
             local wx2, wy2, wz2 = getW(i2)
             local wx3, wy3, wz3 = getW(i3)
+
+            -- Calculate normal vector of the slide surface
             local nx = (wy1-wy2)*(wz1-wz3) - (wz1-wz2)*(wy1-wy3)
             local ny = (wz1-wz2)*(wx1-wx3) - (wx1-wx2)*(wz1-wz3)
             local nz = (wx1-wx2)*(wy1-wy3) - (wy1-wy2)*(wx1-wx3)
-            local len = sqrt(nx*nx+ny*ny+nz*nz)
+            local len = math.sqrt(nx*nx + ny*ny + nz*nz)
             if len == 0 then len = 1 end
-            local dot_val = abs((nx*0.5 + ny*1.0 + nz*0.5) / len)
-            Tri_BaseLight[idx] = max(0.2, min(1.0, dot_val))
+
+            -- THE DOME LIGHT (Point Light Singularity)
+            -- Positioned at X=0, Z=0, and Y=-2000 (just above the top row)
+            local lightX, lightY, lightZ = 0, -2000, 0
+
+            -- Calculate the vector FROM the slide TO the light
+            local lx, ly, lz = lightX - wx1, lightY - wy1, lightZ - wz1
+            local l_len = math.sqrt(lx*lx + ly*ly + lz*lz)
+            if l_len == 0 then l_len = 1 end
+
+            -- Normalize both vectors for accurate light bouncing
+            local nx_n, ny_n, nz_n = nx/len, ny/len, nz/len
+            local lx_n, ly_n, lz_n = lx/l_len, ly/l_len, lz/l_len
+
+            -- Run the dot product. We multiply by 1.2 to let it run "hot"
+            -- and mimic the punchy, high-contrast look of the props!
+            local dot_val = math.abs(nx_n*lx_n + ny_n*ly_n + nz_n*lz_n) * 1.2
+
+            Tri_BaseLight[idx] = math.max(0.2, math.min(1.0, dot_val))
         end
     end
 end
@@ -116,20 +139,21 @@ local function DrawSlide(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, c
             local px3, py3, pz3 = Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3]
             local winding = (px2-px1)*(py3-py1) - (py2-py1)*(px3-px1)
             if winding < 0 then
+                -- No more cross products! No more square roots!
                 local wx1, wy1, wz1 = Vert_CX[i1], Vert_CY[i1], Vert_CZ[i1]
-                local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
-                local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
-                local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
-                local len = sqrt(nx*nx+ny*ny+nz*nz)
-                if len == 0 then len = 1 end
+
+                -- 1. Read the prebaked Dome Light from RAM
                 local base_light = Tri_BaseLight[idx]
-                local headlamp = abs(nx*cfw_x + ny*cfw_y + nz*cfw_z) / len
-                local final_light = max(base_light, headlamp)
+
+                -- 2. THE POLISH: Clamp exposure to 85%
+                local final_light = base_light * 0.85
+
                 -- GHOST EXORCISED: Bind cinematic wave to EngineState
-                if EngineState == STATE_CINEMATIC then 
+                if EngineState == STATE_CINEMATIC then
                     local wave = (math.sin(wy1 * 0.01 + love.timer.getTime() * 10) + 1) * 0.5
-                    final_light = final_light * (0.5 + wave * 0.5) 
+                    final_light = final_light * (0.5 + wave * 0.5)
                 end
+
                 local tc = Tri_Color[idx]
                 local r = bit.band(bit.rshift(tc,16),0xFF) * final_light
                 local g = bit.band(bit.rshift(tc,8),0xFF) * final_light
@@ -175,16 +199,18 @@ local function DrawProp(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cu
             local px1, py1, pz1 = Vert_PX[i1], Vert_PY[i1], Vert_PZ[i1]
             local px2, py2, pz2 = Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2]
             local px3, py3, pz3 = Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3]
+
             local winding = (px2-px1)*(py3-py1) - (py2-py1)*(px3-px1)
             if winding < 0 then
                 local wx1, wy1, wz1 = Vert_CX[i1], Vert_CY[i1], Vert_CZ[i1]
                 local nx = (wy1-Vert_CY[i2])*(wz1-Vert_CZ[i3]) - (wz1-Vert_CZ[i2])*(wy1-Vert_CY[i3])
                 local ny = (wz1-Vert_CZ[i2])*(wx1-Vert_CX[i3]) - (wx1-Vert_CX[i2])*(wz1-Vert_CZ[i3])
                 local nz = (wx1-Vert_CX[i2])*(wy1-Vert_CY[i3]) - (wy1-Vert_CY[i2])*(wx1-Vert_CX[i3])
-                local len = sqrt(nx*nx+ny*ny+nz*nz)
-                if len == 0 then len = 1 end
-                local sun_dot = (nx*0.577 + ny*0.577 + nz*0.577) / len
-                local final_light = max(0.15, min(1.0, sun_dot))
+                local len = sqrt(nx*nx+ny*ny+nz*nz); if len == 0 then len = 1 end
+
+                -- THE ORIGINAL VIBECODED LAMBERTIAN LIGHTING
+                local final_light = max(0.2, min(1.0, (nx*0.5 - ny*1.0 + nz*0.5) / len))
+
                 local tc = Tri_Color[idx]
                 local r = bit.band(bit.rshift(tc,16),0xFF) * final_light
                 local g = bit.band(bit.rshift(tc,8),0xFF) * final_light
