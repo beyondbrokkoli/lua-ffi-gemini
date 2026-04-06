@@ -3,14 +3,6 @@ local bit = require("bit")
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local sqrt = math.sqrt
 local Renderer = {}
-local star_x, star_y, star_z, star_c = {}, {}, {}, {}
-for i = 1, 1000 do
-    star_x[i] = (math.random() - 0.5) * 4000
-    star_y[i] = (math.random() - 0.5) * 4000
-    star_z[i] = (math.random() - 0.5) * 4000
-    local brightness = math.random(50, 200)
-    star_c[i] = bit.bor(0xFF000000, bit.lshift(brightness, 16), bit.lshift(brightness, 8), brightness)
-end
 local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
     if y1 > y2 then x1,x2 = x2,x1
         y1,y2 = y2,y1
@@ -53,26 +45,6 @@ local function RasterizeTriangle(x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor)
                 if cz < ZBuffer[off + x] then ZBuffer[off + x] = cz
                     ScreenPtr[off + x] = shadedColor end
                 cz = cz + z_step
-            end
-        end
-    end
-end
-local function RenderStars()
-    local cx, cy, cz = Cam_X, Cam_Y, Cam_Z
-    local fwx, fwy, fwz = Cam_FWX, Cam_FWY, Cam_FWZ
-    local rtx, rtz = Cam_RTX, Cam_RTZ
-    local upx, upy, upz = Cam_UPX, Cam_UPY, Cam_UPZ
-    for i = 1, 1000 do
-        local dx = (star_x[i] - cx) % 4000 - 2000
-        local dy = (star_y[i] - cy) % 4000 - 2000
-        local dz = (star_z[i] - cz) % 4000 - 2000
-        local depth = dx*fwx + dy*fwy + dz*fwz
-        if depth > 10 then
-            local px = HALF_W + (dx*rtx + dz*rtz) * (Cam_FOV / depth)
-            local py = HALF_H + (dx*upx + dy*upy + dz*upz) * (Cam_FOV / depth)
-            if px >= 0 and px < CANVAS_W and py >= 0 and py < CANVAS_H then
-                local off = floor(py) * CANVAS_W + floor(px)
-                if depth < ZBuffer[off] then ScreenPtr[off] = star_c[i] end
             end
         end
     end
@@ -221,7 +193,6 @@ end
 local function Render3DScene()
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
     ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
-    -- RenderStars()
     local cpx, cpy, cpz = Cam_X, Cam_Y, Cam_Z
     local cfw_x, cfw_y, cfw_z = Cam_FWX, Cam_FWY, Cam_FWZ
     local crt_x, crt_z = Cam_RTX, Cam_RTZ
