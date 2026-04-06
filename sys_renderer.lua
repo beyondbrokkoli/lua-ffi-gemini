@@ -93,7 +93,7 @@ function Renderer.BakeStaticLighting()
             local lx_n, ly_n, lz_n = lx/l_len, ly/l_len, lz/l_len
 
             -- THE FIX: Removed math.abs() so the bottom edges actually fall into shadow!
-            local dot_val = math.max(0, nx_n*lx_n + ny_n*ly_n + nz_n*lz_n) * 1.2
+            local dot_val = math.max(0, nx_n*lx_n + ny_n*ly_n + nz_n*lz_n) * 1.2 -- modified 0 to 0.5
 
             Tri_BaseLight[idx] = math.max(0.2, math.min(1.0, dot_val))
         end
@@ -216,7 +216,7 @@ local function DrawProp(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cu
 
                 -- 3. EXPONENT & MULTIPLIER: Square it for the spotlight effect, boost wattage to 1.5
                 -- 4. FLOOR: Hard 5% (0.05) ambient shadow floor!
-                local final_light = max(0.05, min(1.0, (raw_dot ^ 2) * 1.5))
+                local final_light = max(0.1, min(1.0, (raw_dot ^ 2) * 1.5))
 
                 local tc = Tri_Color[idx]
                 local r = bit.band(bit.rshift(tc,16),0xFF) * final_light

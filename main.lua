@@ -15,7 +15,7 @@ isMouseCaptured = false
 snapshotBaked = false
 local PRESENTATION_ZOOM = 1.0
 local scanlineCanvas = nil
--- ... (Keep GetScanlines, lerp, lerpAngle, slideAPI, UpdateCameraBasis, BuildCollisionPools exactly as they are) ...
+
 local function GetScanlines()
     if not scanlineCanvas then
         scanlineCanvas = love.graphics.newCanvas(love.graphics.getWidth(), love.graphics.getHeight())
@@ -156,20 +156,27 @@ function love.load()
     end
     scanlineCanvas = GetScanlines()
 end
+local function ExecuteSlideTransition()
+    if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
+        updateTargetSide()
+        Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
+        EngineState = STATE_ZEN
+        TargetState = STATE_ZEN
+        SysText.Alpha = 1.0
+        snapshotBaked = false
+    else
+        TargetState = STATE_PRESENT
+        TriggerContinuousFlight()
+    end
+end
 
 function love.keypressed(key)
     if EngineState == STATE_FREEFLY and (key == "p" or key == "space") then
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
         TargetState = STATE_PRESENT
         TriggerContinuousFlight()
-
     elseif EngineState ~= STATE_FREEFLY and (key == "left" or key == "right" or key == "up" or key == "down") then
-        local COLS = 16
-        local row = math.floor(TargetSlide / COLS)
-        local col = TargetSlide % COLS
-        local row_start = row * COLS
-        local oldTarget = TargetSlide
-
+        local COLS = 16; local row = math.floor(TargetSlide / COLS); local col = TargetSlide % COLS; local row_start = row * COLS; local oldTarget = TargetSlide
         if key == "right" then
             if col + 1 < COLS then TargetSlide = math.min(row_start + col + 1, NumSlides - 1) else TargetSlide = row_start end
         elseif key == "left" then
@@ -179,36 +186,24 @@ function love.keypressed(key)
         elseif key == "down" then
             if TargetSlide + COLS < NumSlides then TargetSlide = TargetSlide + COLS end
         end
-
         if TargetSlide ~= oldTarget then
-            TargetState = (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED) and STATE_ZEN or STATE_PRESENT
-            TriggerContinuousFlight()
+            ExecuteSlideTransition()
         end
-
     elseif key == "i" or key == "u" then
-        EngineState = STATE_FREEFLY
-        TargetState = STATE_FREEFLY
+        EngineState = STATE_FREEFLY; TargetState = STATE_FREEFLY
         if key == "u" then Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch end
-
     elseif EngineState ~= STATE_FREEFLY and (key == "space" or key == "backspace") then
         TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
-        TargetState = (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED) and STATE_ZEN or STATE_PRESENT
-        TriggerContinuousFlight()
-
+        ExecuteSlideTransition()
     elseif key == "j" and EngineState == STATE_FREEFLY then
-        isMouseCaptured = not isMouseCaptured
-        love.mouse.setRelativeMode(isMouseCaptured)
-
+        isMouseCaptured = not isMouseCaptured; love.mouse.setRelativeMode(isMouseCaptured)
     elseif key == "c" then Physics.TriggerChaosField()
     elseif key == "v" then Physics.TriggerVortex()
     elseif key == "g" then Physics.TriggerGravity()
-
     elseif key == "z" then
         if EngineState == STATE_FREEFLY then return end
-        if EngineState == STATE_PRESENT then TargetState = STATE_ZEN
-        else TargetState = STATE_PRESENT end
+        if EngineState == STATE_PRESENT then TargetState = STATE_ZEN; else TargetState = STATE_PRESENT end
         TriggerContinuousFlight()
-
     elseif key == "escape" then love.event.quit() end
 end
 function love.update(dt)
@@ -295,9 +290,9 @@ function love.draw()
     Renderer.DrawFrame()
 
     love.graphics.setBlendMode("alpha")
-    --if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then
-    --    love.graphics.draw(scanlineCanvas, 0, 0)
-    --end
+    if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then
+        love.graphics.draw(scanlineCanvas, 0, 0)
+    end
 
     love.graphics.setFont(Font_UI)
     love.graphics.setColor(0, 1, 0.5, 1)
