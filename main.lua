@@ -240,12 +240,12 @@ local function BuildCollisionPools()
 end
 function love.load()
     -- Demand High-DPI (Retina/4K) pixels from the OS, and use Desktop Fullscreen
-    love.window.setMode(0, 0, {
-        fullscreen = true,
-        fullscreentype = "desktop",
-        highdpi = true,
-        vsync = 1
-    })
+    -- love.window.setMode(0, 0, {
+        -- fullscreen = true,
+        -- fullscreentype = "desktop",
+        -- highdpi = true,
+        -- vsync = 1
+    -- })
 
     -- Call ReinitBuffers without passing w/h, because it will fetch the real pixels itself
     ReinitBuffers()
