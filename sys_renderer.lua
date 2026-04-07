@@ -303,21 +303,31 @@ local function RenderText()
     local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
     local abs_dot = abs(dot)
     if abs_dot < 0.707 then return end
+
     local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
     local tdx = (sx + bnx * t_off) - Cam_X
     local tdy = (sy + bny * t_off) - Cam_Y
     local tdz = (sz + bnz * t_off) - Cam_Z
     local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
-    if depth < 10 or depth > 8000 then return end
+
+    -- OVERVIEW FIX: Increased max depth limit
+    if depth < 10 or depth > 15000 then return end
+
     local alpha_close = max(0, min(1, (depth-100)/300))
     local alpha_angle = min(1, (abs_dot-0.707)*5)
-    local alpha_far = max(0, min(1, (8000-depth)/2000))
-    -- Bolwark controlled Alpha override
+
+    -- OVERVIEW FIX: Let text stay visible up to 15000 units away
+    local alpha_far = max(0, min(1, (15000-depth)/2000))
     local final_alpha = alpha_close * alpha_angle * alpha_far * SysText.Alpha
     if final_alpha <= 0.01 then return end
+
     local renderX, renderY = HALF_W, HALF_H
     local current_perspective = (Cam_FOV / depth)
     local draw_scale = current_perspective / cache.opt_scale
+
+    -- THE OFFSET: Shift the cropped canvas UP so it stays anchored to the top!
+    renderY = renderY - ((cache.orig_h - cache.h) * 0.5) * draw_scale
+
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
 function Renderer.DrawFrame()

@@ -90,21 +90,32 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
             end
         end
     end
+    -- THE CROP: Calculate exactly how much height we actually used
+    local finalH = min(virtH, currentY + floor(virtH * 0.05))
 
+    -- Copy only the used portion into a perfectly sized canvas
+    local croppedCanvas = love.graphics.newCanvas(virtW, finalH)
+    love.graphics.setCanvas(croppedCanvas)
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setBlendMode("replace") -- 1:1 pixel copy
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(giantCanvas, 0, 0)
+    love.graphics.setBlendMode("alpha")
     love.graphics.setCanvas()
-    local imgData = giantCanvas:newImageData()
+
+    local imgData = croppedCanvas:newImageData()
     local cache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
-        w = virtW, h = virtH,
+        w = virtW, h = finalH,
         _keepAlive = imgData,
         text_z_offset = (Box_HT[i] + 5),
-        opt_scale = optimal_scale
+        opt_scale = optimal_scale,
+        orig_h = virtH -- Store the original height to offset the alignment later!
     }
-    -- YOUR MEMORY LEAK FIX
     giantCanvas:release()
+    croppedCanvas:release()
     return cache
 end
-
 function SysText.InitSlideTextCache()
     -- 1. CLEAN UP THE OLD CACHE FIRST
     if SlideTitles then
