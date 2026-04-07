@@ -294,7 +294,7 @@ end
 local function RenderText()
     -- GHOST EXORCISED: presentationMode is dead. FreeFly hides text.
     if NumSlides == 0 or EngineState == STATE_FREEFLY then return end
-    local i = TargetSlide
+    local i = activeSlide
     local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
     local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]
     local cache = SysText.GetCache(i, EngineState)

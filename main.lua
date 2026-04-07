@@ -168,6 +168,10 @@ local function ExecuteSlideTransition()
         Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
         EngineState = STATE_ZEN
         TargetState = STATE_ZEN
+
+        -- THE FIX: Instantly sync the active slide for Zen Mode
+        activeSlide = TargetSlide
+
         SysText.Alpha = 1.0
         snapshotBaked = false
     else
@@ -281,6 +285,11 @@ function love.update(dt)
 
     -- 2. DECOUPLED TEXT ALPHA (Evaluates against the NEW state!)
     local isTextReady = SysText.Update(EngineState, dt)
+
+    -- THE FIX: Swap the active slide ONLY when the old text has fully faded out!
+    if SysText.Alpha <= 0.01 then
+        activeSlide = TargetSlide
+    end
 
     -- 3. HIBERNATION LOGIC
     if EngineState == STATE_HIBERNATED then
