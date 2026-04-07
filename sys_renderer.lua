@@ -147,10 +147,16 @@ local function DrawSlide(id, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, c
                 -- 2. THE POLISH: Clamp exposure to 85%
                 local final_light = base_light * 0.85
 
-                -- GHOST EXORCISED: Bind cinematic wave to EngineState
-                if EngineState == STATE_CINEMATIC then
-                    local wave = (math.sin(wy1 * 0.01 + love.timer.getTime() * 10) + 1) * 0.5
-                    final_light = final_light * (0.5 + wave * 0.5)
+                -- THE SELECTION INDICATOR
+                if id == Pool_Solid[TargetSlide] then
+                    -- If we are in Overview, or flying to Overview, use the breathing wave!
+                    if EngineState == STATE_OVERVIEW or TargetState == STATE_OVERVIEW then
+                        local wave = (math.sin(love.timer.getTime() * 4) + 1) * 0.5
+                        final_light = final_light + (wave * 0.25)
+                    else
+                        -- Active/Zen: A crisp, stable 15% brightness boost
+                        final_light = final_light + 0.15
+                    end
                 end
 
                 local tc = Tri_Color[idx]

@@ -117,6 +117,7 @@ STATE_CINEMATIC  = 1
 STATE_PRESENT    = 2
 STATE_ZEN        = 3
 STATE_HIBERNATED = 4
+STATE_OVERVIEW = 5 -- The new Command & Control state
 
 EngineState = STATE_PRESENT
 TargetState = STATE_PRESENT
@@ -136,6 +137,6 @@ function ReinitBuffers()
     ScreenImage = love.graphics.newImage(ScreenBuffer)
     ScreenPtr = ffi.cast("uint32_t*", ScreenBuffer:getPointer())
     ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
-    
+
     Cam_FOV = (CANVAS_W / 800) * 600
 end

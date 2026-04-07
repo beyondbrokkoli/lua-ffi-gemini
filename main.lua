@@ -87,10 +87,16 @@ local function updateTargetSide()
     local ny = Box_NY[TargetSlide] or 0
     local nz = Box_NZ[TargetSlide] or 1
     local distScale = math.max(s.h, s.w * (CANVAS_H / CANVAS_W))
-    -- Padding depends purely on TargetState
-    local pad = (TargetState == STATE_ZEN) and 0 or 200
-    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + pad
 
+    -- Dynamically assign padding based on the state!
+    local pad = 200
+    if TargetState == STATE_ZEN then
+        pad = 0
+    elseif TargetState == STATE_OVERVIEW then
+        pad = 6000
+    end
+
+    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + pad
     local fx, fy, fz = s.x + nx * dist, s.y + ny * dist, s.z + nz * dist
     local bx, by, bz = s.x - nx * dist, s.y - ny * dist, s.z - nz * dist
     local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
@@ -165,7 +171,13 @@ local function ExecuteSlideTransition()
         SysText.Alpha = 1.0
         snapshotBaked = false
     else
-        TargetState = STATE_PRESENT
+        -- THE FIX: Respect the Overview state!
+        if EngineState == STATE_OVERVIEW or TargetState == STATE_OVERVIEW then
+            TargetState = STATE_OVERVIEW
+        else
+            TargetState = STATE_PRESENT
+        end
+
         TriggerContinuousFlight()
     end
 end
@@ -200,9 +212,19 @@ function love.keypressed(key)
     elseif key == "c" then Physics.TriggerChaosField()
     elseif key == "v" then Physics.TriggerVortex()
     elseif key == "g" then Physics.TriggerGravity()
+    elseif key == "o" then
+        if EngineState == STATE_FREEFLY then return end
+        if TargetState == STATE_OVERVIEW then
+            TargetState = STATE_PRESENT
+        else
+            TargetState = STATE_OVERVIEW
+        end
+        TriggerContinuousFlight()
     elseif key == "z" then
         if EngineState == STATE_FREEFLY then return end
-        if EngineState == STATE_PRESENT then TargetState = STATE_ZEN; else TargetState = STATE_PRESENT end
+        -- Allow dropping directly into ZEN from OVERVIEW
+        if EngineState == STATE_PRESENT or EngineState == STATE_OVERVIEW then TargetState = STATE_ZEN
+        else TargetState = STATE_PRESENT end
         TriggerContinuousFlight()
     elseif key == "escape" then love.event.quit() end
 end
