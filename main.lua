@@ -1,12 +1,12 @@
 require("sys_memory")
 local ffi = require("ffi")
 local Engine = require("engine")
-local SlidesInternal = require("slides_internal")
+-- removed slides_internal
 local Physics = require("sys_physics")
-local Renderer = require("sys_renderer")
+local Renderer = require("sys_renderer") -- we will figure this out after we integrated some functionality from main.lua into the 4 modules
 local Factory = require("sys_factory")
-local SysText = require("sys_text")
--- The new Bolwark
+local SysText = require("sys_text") -- same here, also sys_renderer will need adjustments but this one must stay stable until after the presentation, font rendering really is something else
+
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local random, sqrt, cos, sin, pi, atan2 = math.random, math.sqrt, math.cos, math.sin, math.pi, math.atan2
 
@@ -14,49 +14,13 @@ isFullscreen = true
 isMouseCaptured = false
 snapshotBaked = false
 local PRESENTATION_ZOOM = 1.0
-local scanlineCanvas = nil
 
-local function GetScanlines()
-    if not scanlineCanvas then
-        scanlineCanvas = love.graphics.newCanvas(love.graphics.getWidth(), love.graphics.getHeight())
-        love.graphics.setCanvas(scanlineCanvas)
-        love.graphics.setColor(0, 0, 0, 0.3)
-        for y = 0, love.graphics.getHeight(), 3 do
-            love.graphics.rectangle("fill", 0, y, love.graphics.getWidth(), 1)
-        end
-        love.graphics.setCanvas()
-    end
-    return scanlineCanvas
-end
 local function lerp(a, b, t) return a + (b - a) * t end
 local function lerpAngle(a, b, t)
     local diff = (b - a + pi) % (pi * 2) - pi
     return a + diff * t
 end
-local slideAPI = {
-    CreateTriObject = Factory.CreateTriObject, CreateTorus = Factory.CreateTorus,
-    Obj_VertStart = Obj_VertStart, Obj_VertCount = Obj_VertCount,
-    Obj_TriStart = Obj_TriStart, Obj_TriCount = Obj_TriCount,
-    Vert_LX = Vert_LX, Vert_LY = Vert_LY, Vert_LZ = Vert_LZ,
-    Tri_V1 = Tri_V1, Tri_V2 = Tri_V2, Tri_V3 = Tri_V3, Tri_Color = Tri_Color,
-    Obj_X = Obj_X, Obj_Y = Obj_Y, Obj_Z = Obj_Z,
-    Obj_Yaw = Obj_Yaw, Obj_Pitch = Obj_Pitch, Obj_Radius = Obj_Radius,
-    Obj_VelX = Obj_VelX, Obj_VelY = Obj_VelY, Obj_VelZ = Obj_VelZ,
-    Obj_RotSpeedYaw = Obj_RotSpeedYaw, Obj_RotSpeedPitch = Obj_RotSpeedPitch,
-    Obj_HomeIdx = Obj_HomeIdx,
-    Box_X = Box_X, Box_Y = Box_Y, Box_Z = Box_Z,
-    Box_HW = Box_HW, Box_HH = Box_HH, Box_HT = Box_HT,
-    Box_CosA = Box_CosA, Box_SinA = Box_SinA,
-    Box_NX = Box_NX, Box_NY = Box_NY, Box_NZ = Box_NZ,
-    Box_FWX = Box_FWX, Box_FWY = Box_FWY, Box_FWZ = Box_FWZ,
-    Box_RTX = Box_RTX, Box_RTY = Box_RTY, Box_RTZ = Box_RTZ,
-    Box_UPX = Box_UPX, Box_UPY = Box_UPY, Box_UPZ = Box_UPZ,
-    Sphere_X = Sphere_X, Sphere_Y = Sphere_Y, Sphere_Z = Sphere_Z, Sphere_RSq = Sphere_RSq,
-    Obj_FWX = Obj_FWX, Obj_FWY = Obj_FWY, Obj_FWZ = Obj_FWZ,
-    Obj_RTX = Obj_RTX, Obj_RTY = Obj_RTY, Obj_RTZ = Obj_RTZ,
-    Obj_UPX = Obj_UPX, Obj_UPY = Obj_UPY, Obj_UPZ = Obj_UPZ,
-    NumObjects = function() return NumObjects end
-}
+-- removed slide.api
 local function UpdateCameraBasis()
     local cy, sy = cos(Cam_Yaw), sin(Cam_Yaw)
     local cp, sp = cos(Cam_Pitch), sin(Cam_Pitch)
@@ -81,34 +45,41 @@ local function BuildCollisionPools()
     end
 end
 local function updateTargetSide()
-    local s = manifest[TargetSlide]
-    if not s then return end
-    local nx = Box_NX[TargetSlide] or 0
-    local ny = Box_NY[TargetSlide] or 0
-    local nz = Box_NZ[TargetSlide] or 1
-    local distScale = math.max(s.h, s.w * (CANVAS_H / CANVAS_W))
+    local id = TargetSlide
+    -- If we have no slides, abort safely
+    if NumSlides == 0 or id >= NumSlides then return end
 
-    -- Dynamically assign padding based on the state!
+    -- Pull completely from FFI Arrays (No Lua table needed!)
+    local nx, ny, nz = Box_NX[id], Box_NY[id], Box_NZ[id]
+    local sx, sy, sz = Box_X[id], Box_Y[id], Box_Z[id]
+
+    -- Reconstruct full width/height from our Half-Width/Half-Height FFI buffers
+    local w = Box_HW[id] * 2
+    local h = Box_HH[id] * 2
+
+    local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
+
     local pad = 200
-    if TargetState == STATE_ZEN then
-        pad = 0
-    elseif TargetState == STATE_OVERVIEW then
-        pad = 6000
-    end
+    if TargetState == STATE_ZEN then pad = 0
+    elseif TargetState == STATE_OVERVIEW then pad = 6000 end
 
     local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + pad
-    local fx, fy, fz = s.x + nx * dist, s.y + ny * dist, s.z + nz * dist
-    local bx, by, bz = s.x - nx * dist, s.y - ny * dist, s.z - nz * dist
+
+    local fx, fy, fz = sx + nx * dist, sy + ny * dist, sz + nz * dist
+    local bx, by, bz = sx - nx * dist, sy - ny * dist, sz - nz * dist
+
     local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
     local dB = (bx - Cam_X)^2 + (by - Cam_Y)^2 + (bz - Cam_Z)^2
+
     local dx, dy, dz
     if dF <= dB then
         tX, tY, tZ = fx, fy, fz
-        dx, dy, dz = s.x - fx, s.y - fy, s.z - fz
+        dx, dy, dz = sx - fx, sy - fy, sz - fz
     else
         tX, tY, tZ = bx, by, bz
-        dx, dy, dz = s.x - bx, s.y - by, s.z - bz
+        dx, dy, dz = sx - bx, sy - by, sz - bz
     end
+
     tYaw = math.atan2(dx, dz)
     tPitch = math.atan2(dy, math.sqrt(dx*dx + dz*dz))
 end
@@ -122,45 +93,40 @@ local function TriggerContinuousFlight()
     snapshotBaked = false
 end
 
+
+-- Demand High-DPI (Retina/4K) pixels from the OS, and use Desktop Fullscreen
+-- love.window.setMode(0, 0, {
+-- fullscreen = true,
+-- fullscreentype = "desktop",
+-- highdpi = true,
+-- vsync = 1
+-- })
 function love.load()
-    -- Demand High-DPI (Retina/4K) pixels from the OS, and use Desktop Fullscreen
-    -- love.window.setMode(0, 0, {
-        -- fullscreen = true,
-        -- fullscreentype = "desktop",
-        -- highdpi = true,
-        -- vsync = 1
-    -- })
     ReinitBuffers()
     love.mouse.setRelativeMode(isMouseCaptured)
     Font_UI = love.graphics.newFont(14)
 
-    local sceneState = Engine.Boot(slideAPI, "scene.json")
+    local sceneState = Engine.Boot("scene.json")
     if sceneState then
-        manifest, NumSlides = sceneState.manifest, sceneState.NumSlides
+        -- NO MORE MANIFEST GLOBAL!
+        NumSlides = sceneState.NumSlides
         local b = sceneState.bounds
         B_MinX, B_MinY, B_MinZ, B_MaxX, B_MaxY, B_MaxZ = b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ
+
         TargetSlide = 0
         updateTargetSide()
+
         Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
         startX, startY, startZ, startYaw, startPitch = tX, tY, tZ, tYaw, tPitch
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
 
-        SysText.InitSlideTextCache()
-        -- Boot the new Bolwark
-        -- SlidesInternal.SpawnDeepSpaceAsteroids(slideAPI, 60)
-        SlidesInternal.SpawnSpaceAsteroids(slideAPI, 856)
-        -- SlidesInternal.SpawnHeroDonut(slideAPI, 0)
-        -- SlidesInternal.SpawnSatelliteRing(slideAPI, 1, 16)
-        -- SlidesInternal.CrystalCompanion(slideAPI, 3, 30)
-        -- SlidesInternal.SpawnGeometricStorm(slideAPI, 3, 45)
-        -- SlidesInternal.SpawnParticleAccelerator(slideAPI, 4, 80)
-        -- SlidesInternal.SpawnSatelliteRing(slideAPI, 8, 24)
-        -- SlidesInternal.SpawnChaosCluster(slideAPI, 9, 50)
+        -- Pass the payload locally!
+        SysText.InitSlideTextCache(sceneState.textPayload)
+
         BuildCollisionPools()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()
     end
-    scanlineCanvas = GetScanlines()
 end
 local function ExecuteSlideTransition()
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
@@ -209,14 +175,21 @@ function love.keypressed(key)
         EngineState = STATE_FREEFLY; TargetState = STATE_FREEFLY
         if key == "u" then Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch end
     elseif EngineState ~= STATE_FREEFLY and (key == "space" or key == "backspace") then
-        TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
-        ExecuteSlideTransition()
+        -- NEW LOGIC: If we are in Overview, Space toggles us back to the slide.
+        if key == "space" and TargetState == STATE_OVERVIEW then
+            TargetState = STATE_PRESENT
+            TriggerContinuousFlight()
+        else
+            -- Standard behavior: Move to next/prev slide
+            TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
+            ExecuteSlideTransition()
+        end
     elseif key == "j" and EngineState == STATE_FREEFLY then
         isMouseCaptured = not isMouseCaptured; love.mouse.setRelativeMode(isMouseCaptured)
     elseif key == "c" then Physics.TriggerChaosField()
     elseif key == "v" then Physics.TriggerVortex()
     elseif key == "g" then Physics.TriggerGravity()
-    elseif key == "o" then
+    elseif key == "tab" then
         if EngineState == STATE_FREEFLY then return end
         if TargetState == STATE_OVERVIEW then
             TargetState = STATE_PRESENT
@@ -321,9 +294,9 @@ function love.draw()
     Renderer.DrawFrame()
 
     love.graphics.setBlendMode("alpha")
-    if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then
-        love.graphics.draw(scanlineCanvas, 0, 0)
-    end
+    -- if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then
+        -- placeholder for effects
+    -- end
 
     love.graphics.setFont(Font_UI)
     love.graphics.setColor(0, 1, 0.5, 1)
