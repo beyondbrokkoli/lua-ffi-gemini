@@ -129,15 +129,15 @@ function love.load()
         BuildCollisionPools()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()
-        -- Add this right after Renderer.BakeStaticLighting()
-        HUD_DIST = 500 -- Distance from camera lens
-        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 800, 600, 10, 0xFF181818) -- Dark Gray Board
+        -- In main.lua -> love.load()
+        -- After creating the main slides...
 
-        -- Manually max out its lighting so it perfectly obeys SlideExposure (+ / -)
-        local tStart = Obj_TriStart[HUD_Mesh_ID]
-        for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
-            Tri_BaseLight[tStart + t] = 1.0
-        end
+        HUD_DIST = 500
+        -- Use C_CREAM (or C_LATTE) instead of dark gray!
+        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 800, 600, 10, C_CREAM)
+
+        -- No need to force the lighting to 1.0; let it react to the Dome Light normally!
+
     end
     BGB = require("bgb") -- i will do it here
 end

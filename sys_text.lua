@@ -105,48 +105,61 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     croppedCanvas:release()
     return cache
 end
-function SysText.BakeTerminal(lines)
-    local font = love.graphics.newFont(16)
+function SysText.BakeTerminal()
     local w, h = floor(CANVAS_W * 0.45), CANVAS_H
     local canvas = love.graphics.newCanvas(w, h)
-    love.graphics.setFont(Font_Terminal)
+    
     love.graphics.setCanvas(canvas)
-    -- PARADIGM SHIFT: Bake the translucent background here!
-    -- Alpha 0.6 means BlitUI_3D will naturally let 40% of the 3D scene bleed through.
-    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.clear(0, 0.05, 0, 0.6) -- Translucent dark green glass
+    
+    -- Ensure Font_Terminal exists (defined in main.lua load)
+    local font = Font_Terminal or love.graphics.newFont(16)
+    love.graphics.setFont(font)
 
-    -- ... [Your exact same ANSI parsing loop here] ...
-    for i, line in ipairs(HUD.lines) do
-        local curX = 10
-        local curY = 20 + (i * 20)
-        love.graphics.setColor(1, 1, 1, 1) -- Default
+    local padding = 20
+    local wrapLimit = w - (padding * 2)
+    local curY = 20
+    local defaultColor = {0, 0.8, 0, 1}
 
-        -- Parser: Finds ANSI codes and the text segments following them
-        -- We handle lines with and without codes seamlessly
+    for _, line in ipairs(HUD.lines) do
+        -- 1. Parse the ANSI line into a Love2D ColoredText Table
+        local coloredText = {}
         local lastPos = 1
+        local currentColor = defaultColor
+        
         for code, text, pos in line:gmatch("\27%[([%d;]*)m([^\27]*)()") do
-            if ansi_to_love[code] then
-                local c = ansi_to_love[code]
-                love.graphics.setColor(c[1], c[2], c[3], 1)
+            if ansi_to_love[code] then currentColor = {ansi_to_love[code][1], ansi_to_love[code][2], ansi_to_love[code][3], 1} end
+            if text and #text > 0 then
+                table.insert(coloredText, currentColor)
+                table.insert(coloredText, text)
             end
-            love.graphics.print(text, curX, curY)
-            curX = curX + font:getWidth(text)
             lastPos = pos
         end
-
-        -- Catch any remaining text if no codes were present
+        
+        -- If no ANSI codes were found, just use the raw line
         if lastPos == 1 then
-            love.graphics.print(line, 10, curY)
+            coloredText = {defaultColor, line}
         end
+
+        -- 2. Wrap and Render
+        -- Check how many vertical lines this paragraph will take up
+        local width, wrappedLines = font:getWrap(coloredText, wrapLimit)
+        
+        -- Print the wrapped, syntax-highlighted text block
+        love.graphics.printf(coloredText, padding, curY, wrapLimit, "left")
+        
+        -- 3. Push the Y coordinate down for the next line in the HUD
+        curY = curY + (#wrappedLines * font:getHeight()) + 5
     end
+
     love.graphics.setCanvas()
     local imgData = canvas:newImageData()
+    
     TerminalCache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = w, h = h,
         _keepAlive = imgData,
-        -- Match the optical scale to the HUD's physical distance!
-        opt_scale = (Cam_FOV / HUD_DIST),
+        opt_scale = (Cam_FOV / HUD_DIST), -- Using your physical HUD distance!
         orig_h = h
     }
     canvas:release()
