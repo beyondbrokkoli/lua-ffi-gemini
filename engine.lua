@@ -14,31 +14,17 @@ local C_CREAM = 4294306522 -- 0xFFF5EADA
 local C_LATTE = 4292131280 -- 0xFFEAE0D0
 local RADIUS = 7500
 
--- CONTENT TEMPLATES (The 12-Slide BGB Boss Fight)
--- local templates = {
---    { text = "THE ELEPHANT", content = {"~ # THE ELEPHANT IN THE ROOM", "", "~ I called in sick.", "~ I came back to the topic 'Personalkündigung'.", "", "A psychological debuff? | A subtle warning?", "", "~ Management thinks the BGB is a weapon.", "~ But we are going to look at the actual patch notes."} },
---    { text = "THE 3 EXITS", content = {"~ # THE GAME THEORY OF TERMINATION", "", "Ordentlich (§ 622 BGB) | The Cooldown", "Standard exit strategy. | Bound by strict time limits.", "", "Außerordentlich (§ 626 BGB) | The Nuke", "Immediate termination. | Requires massive breach of trust.", "", "Aufhebungsvertrag | The Negotiated Surrender", "Mutual agreement to quit. | Warning: Triggers 'Arbeitsamt' debuff."} },
---    { text = "ORDENTLICH", content = {"~ # THE COOLDOWN (§ 622 BGB)", "", "~ Playing by the standard rules.", "", "The Notice Period | Respecting the Timer", "A graceful exit. | No explicit reason required from the employee.", "", "Constitutional Right | Article 12 GG", "Berufsfreiheit. | If you can't quit gracefully, it's forced labor."} },
---    { text = "THE NUKE", content = {"~ # THE NUKE (§ 626 BGB)", "", "~ Fristlose Kündigung: The Movie Moment.", "", "'Pack your desk right now.' | Bypasses the cooldown timer.", "", "The Condition | Wichtiger Grund", "Requires severe misconduct. | Violence, theft, or extreme insults."} },
---    { text = "THE SURRENDER", content = {"~ # THE NEGOTIATED SURRENDER", "", "~ Aufhebungsvertrag: The Golden Handshake.", "", "Constructive Dismissal | 'Expected to quit'", "Boss creates hostile environment? | Illegal.", "", "The Abfindung | The Severance", "Get paid to leave quietly. | But beware the 12-week block."} },
---    { text = "THE TRUST METER", content = {"~ # THE TRUST METER (ABMAHNUNG)", "", "~ You cannot drop the Nuke without a target lock.", "", "The Yellow Card | Documented Strikes", "Minor offenses require warnings. | Warns of contract termination.", "", "Proportionality | The Law of Balance", "You cannot nuke a fly. | Use the lowest effective force."} },
---    { text = "THE DAMAGE CHECK", content = {"~ # THE DAMAGE CHECK", "", "~ SOURCE CODE: § 626 Abs. 1 BGB", "", "'...nicht zugemutet werden kann.' | Cannot be reasonably expected.", "", "The Stat Check | High Difficulty", "Must prove keeping you for 4 weeks | causes catastrophic damage."} },
---    { text = "ANTI-RAGE-QUIT", content = {"~ # THE ANTI-RAGE-QUIT MECHANIC", "", "~ SOURCE CODE: § 626 Abs. 2 BGB", "", "The 14-Day Timer | Strict Window", "Boss finds out about misconduct? | They have exactly two weeks.", "", "Miss the window? | The Nuke is deactivated.", "The offense is wiped from active cache. | Must use ordinary cooldown."} },
---    { text = "THE MEHMET TRAP", content = {"~ # THE MEHMET TRAP", "", "~ The Friction: § 113 BGB vs. § 22 BBiG", "", "Jasmin (17, Job) | Can quit alone (Generaleinwilligung)", "Mehmet (17, Azubi) | Locked in. Needs parents' double signature.", "", "Azubi God-Mode | Invincibility Frames", "After probation, standard firing is disabled. | You are wearing plot armor."} },
---    { text = "THE BOSS FIGHT", content = {"~ # THE 1.30€ BOSS FIGHT", "", "~ Der Emmely-Fall (BAG: 2 AZR 541/09)", "", "The Player | 31 years of flawless loyalty.", "The Crime | Kept two deposit receipts worth 1.30€.", "", "The Employer's Play | Dropped the Nuke.", "Theft is theft. | Instant termination."} },
---    { text = "THE RULING", content = {"~ # THE SUPREME COURT RULING", "", "~ The Reversal (2010)", "", "The Trust Buffer | Decades of Loyalty", "31 flawless years creates massive trust. | 1.30€ cannot instantly one-shot it.", "", "The Verdict | Termination Invalid", "Employer failed the mechanics. | An 'Abmahnung' was required."} },
---    { text = "THE META", content = {"~ # MASTERING THE META", "", "~ Personalkündigung is not an execution.", "", "The Burden of Proof | Lies with the Employer", "The system prevents emotional firing. | Mathematical precision.", "", "The Balance Patch | BGB & BBiG", "Protects the young from rash choices. | Protects veterans from ruthless cuts.", "", "~ Know your cooldowns. Know your shields. Play the game."} }
--- }
--- CONTENT TEMPLATES (The 12-Slide Personalkündigung Overview)
--- CONTENT TEMPLATES (The 12-Slide Personalkündigung Overview)
+-- CONTENT TEMPLATES (The 12-Slide Personalkündigung Overview - Linear Layout)
 local templates = {
     { 
         text = "THE DESTRUCTOR", 
         content = {
             "~ # PERSONALKÜNDIGUNG", 
             "", 
-            "~ § 611a: The Constructor. | § 620: The Destructor.", 
-            "~ Instantiates an employment. | Defines how it ceases to exist.", 
+            "~ § 611a: The Constructor.",
+            "~ § 620: The Destructor.", 
+            "", 
+            "~ Instantiates an employment. Defines how it ceases.", 
             "", 
             "Absatz 1: The Timer Runs Out", 
             "If a contract has a fixed term, it self-terminates.", 
@@ -53,8 +39,9 @@ local templates = {
             "\"I found myself within a shadowed forest,", 
             "~ for I had lost the path that does not stray...\"", 
             "", 
-            "§ 620 Absatz 2 BGB | The Open-Ended Loop", 
-            "Most contracts run forever. | To break the loop, we must enter the thicket.", 
+            "§ 620 Absatz 2 BGB: The Open-Ended Loop", 
+            "Most contracts run forever.",
+            "To break the loop, we must enter the thicket.", 
             "", 
             "~ §§ 621 to 626: The manual override protocols."
         } 
@@ -64,12 +51,14 @@ local templates = {
         content = {
             "~ # THE TRILOGY OF EXITS", 
             "", 
-            "Ordentlich (§ 622) | Außerordentlich (§ 626)", 
-            "Unilateral: The Cooldown. | Unilateral: The Hard Reset.", 
+            "1. Ordentlich (§ 622) - The Cooldown", 
+            "Unilateral termination with strict time limits.", 
             "", 
-            "Aufhebungsvertrag | The Negotiated Surrender", 
-            "Bilateral: Mutual consent.", 
-            "Triggers a 12-week penalty block at the Arbeitsamt."
+            "2. Außerordentlich (§ 626) - The Hard Reset", 
+            "Unilateral immediate termination.", 
+            "", 
+            "3. Aufhebungsvertrag - The Negotiated Surrender", 
+            "Bilateral mutual consent. Triggers a 12-week Arbeitsamt block."
         } 
     },
     { 
@@ -79,10 +68,10 @@ local templates = {
             "", 
             "~ The standard administrative procedure.", 
             "", 
-            "Tenure Armor | Scaling Notice Periods", 
-            "The longer you survive, | the longer the employer's cooldown.", 
+            "Tenure Armor: Scaling Notice Periods", 
+            "The longer you survive, the longer the employer's cooldown.", 
             "", 
-            "Max Level | 7 Months", 
+            "Max Level: 7 Months", 
             "After 20 years, the employer must wait 7 months to the end of a month."
         } 
     },
@@ -93,8 +82,8 @@ local templates = {
             "", 
             "~ Fristlose Kündigung aus wichtigem Grund.", 
             "", 
-            "Instant Termination | Bypasses the standard notice period.", 
-            "Wichtiger Grund | Requires severe misconduct (e.g., theft, violence).", 
+            "Instant Termination: Bypasses the standard notice period.", 
+            "Wichtiger Grund: Requires severe misconduct (e.g., theft, violence).", 
             "", 
             "~ Warning: This is an overpowered mechanic.", 
             "~ The system requires strict validation checks to execute."
@@ -105,10 +94,11 @@ local templates = {
         content = {
             "~ # STRICT VALIDATION CHECKS", 
             "", 
-            "§ 623: The Format Validator | Wet Ink Only", 
-            "Digital inputs (WhatsApp, Email) throw a syntax error and are void.", 
+            "§ 623: The Format Validator", 
+            "Digital inputs (WhatsApp, Email) throw a syntax error and are void.",
+            "Wet ink on paper is strictly required.", 
             "", 
-            "§ 626 Abs. 2: The 14-Day Timer | Strict Execution Window", 
+            "§ 626 Abs. 2: The 14-Day Timer", 
             "Incident discovered? You have exactly two weeks to trigger the reset.", 
             "Missed the window? Fallback to standard cooldown required."
         } 
@@ -120,11 +110,11 @@ local templates = {
             "", 
             "~ You rarely trigger a hard reset without a warning.", 
             "", 
-            "The Yellow Card | Verhaltensbedingte Kündigung", 
-            "Documents specific bugs in behavior. | Warns of system termination.", 
+            "The Yellow Card: Verhaltensbedingte Kündigung", 
+            "Documents specific bugs in behavior. Warns of system termination.", 
             "", 
-            "Proportionality | Verhältnismäßigkeit", 
-            "You cannot use maximum force on a minor error. | Escalate logically."
+            "Proportionality: Verhältnismäßigkeit", 
+            "You cannot use maximum force on a minor error. Escalate logically."
         } 
     },
     { 
@@ -134,9 +124,9 @@ local templates = {
             "", 
             "~ SOURCE CODE: § 626 Abs. 1 BGB", 
             "", 
-            "'Nicht zugemutet werden kann' | Cannot be reasonably expected.", 
+            "\"Nicht zugemutet werden kann\" (Cannot be reasonably expected)", 
             "", 
-            "The Stat Check | High Difficulty", 
+            "The Stat Check: High Difficulty", 
             "Employer must prove that keeping the employee for even 4 more weeks", 
             "causes unreasonable, catastrophic damage to the operation."
         } 
@@ -148,10 +138,10 @@ local templates = {
             "", 
             "~ § 113 BGB vs. § 22 BBiG", 
             "", 
-            "Minor Worker (e.g., 17) | Can quit easily (Generaleinwilligung).", 
-            "Apprentice (Azubi) | Locked in. Needs double parental signature.", 
+            "Minor Worker (e.g., 17): Can quit easily (Generaleinwilligung).", 
+            "Apprentice (Azubi): Locked in. Needs double parental signature.", 
             "", 
-            "After Probation | Invincibility Frames", 
+            "After Probation: Invincibility Frames", 
             "Standard employer termination is effectively disabled by the BBiG."
         } 
     },
@@ -162,11 +152,11 @@ local templates = {
             "", 
             "~ BAG-Urteil (2010): 2 AZR 541/09", 
             "", 
-            "The Player | 31 years of flawless service as a cashier.", 
-            "The Incident | Redeemed two found deposit receipts worth 1.30€.", 
+            "The Player: 31 years of flawless service as a cashier.", 
+            "The Incident: Redeemed two found deposit receipts worth 1.30€.", 
             "", 
-            "The Employer's Play | Triggered the Hard Reset (§ 626).", 
-            "Argument | Theft is theft. Trust is permanently destroyed."
+            "The Employer's Play: Triggered the Hard Reset (§ 626).", 
+            "Argument: Theft is theft. Trust is permanently destroyed."
         } 
     },
     { 
@@ -176,11 +166,11 @@ local templates = {
             "", 
             "~ The Reversal (2010)", 
             "", 
-            "The Trust Buffer | Decades of Loyalty", 
-            "31 flawless years build massive trust. | 1.30€ cannot instantly one-shot it.", 
+            "The Trust Buffer: Decades of Loyalty", 
+            "31 flawless years build massive trust. 1.30€ cannot one-shot it.", 
             "", 
-            "The Verdict | Termination Invalid", 
-            "Employer failed the mechanics. | An 'Abmahnung' was required."
+            "The Verdict: Termination Invalid", 
+            "Employer failed the mechanics. An 'Abmahnung' was required."
         } 
     },
     { 
@@ -190,10 +180,12 @@ local templates = {
             "", 
             "~ Memory Leaks and Garbage Collection", 
             "", 
-            "§ 629: The Job Hunt Buff | Employer must grant paid time off to interview.", 
-            "§ 630: The Final Log File | The Zeugnis (Simple or Advanced).", 
+            "§ 629: The Job Hunt Buff",
+            "Employer must grant paid time off to interview.", 
+            "",
+            "§ 630: The Final Log File",
+            "The Zeugnis (Simple or Advanced).", 
             "", 
-            "~ The BGB is a highly regulated message-passing architecture.", 
             "~ Know your cooldowns. Read the logs. Master the system."
         } 
     }
