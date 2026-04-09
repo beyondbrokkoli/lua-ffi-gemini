@@ -6,7 +6,7 @@ local Physics = require("sys_physics")
 local Renderer = require("sys_renderer") -- we will figure this out after we integrated some functionality from main.lua into the 4 modules
 local Factory = require("sys_factory")
 local SysText = require("sys_text") -- same here, also sys_renderer will need adjustments but this one must stay stable until after the presentation, font rendering really is something else
-local BGB = require("bgb")
+local BGB = {}
 
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local random, sqrt, cos, sin, pi, atan2 = math.random, math.sqrt, math.cos, math.sin, math.pi, math.atan2
@@ -130,6 +130,7 @@ function love.load()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()
     end
+    BGB = require("bgb") -- i will do it here
 end
 local function ExecuteSlideTransition()
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
@@ -213,6 +214,27 @@ function love.keypressed(key)
         SlideExposure = math.max(0.1, SlideExposure - 0.1)
         snapshotBaked = false -- Forces the Zen mode to re-render the frame!
     elseif key == "escape" then love.event.quit() end
+    -- Number keys (1-9) trigger the Lookup
+    if key:match("^[1-9]$") then
+        local para_map = {["1"]="611", ["2"]="611a", ["3"]="620", ["4"]="622", ["5"]="623", ["6"]="626"}
+        local target = para_map[key]
+        
+        if target and BGB[target] then
+            Engine.terminal.open = true
+            Engine.terminal.lines = {
+                "> § " .. target .. ": " .. BGB[target].title,
+                "---",
+                BGB[target].text
+            }
+            snapshotBaked = false -- The beautiful state-track wake-up!
+        end
+    end
+    
+    -- Toggle HUD
+    if key == "t" then
+        Engine.terminal.open = not Engine.terminal.open
+        snapshotBaked = false
+    end
 end
 function love.update(dt)
     dt = math.min(dt, 0.033)

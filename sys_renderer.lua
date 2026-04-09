@@ -339,44 +339,46 @@ local function RenderText()
 
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
--- Add this function to sys_renderer.lua
-function Renderer.DrawTerminalOverlay()
-    if not Engine.terminal or not Engine.terminal.open then return end
+
+local function BlitTerminalText()
+    if not TerminalCache or not Engine.terminal.open then return end
+    local ptr, tw, th = TerminalCache.ptr, TerminalCache.w, TerminalCache.h
     
-    local termWidth = math.floor(CANVAS_W * 0.4) -- 40% of screen
-    for y = 0, CANVAS_H - 1 do
-        local offset = y * CANVAS_W
-        for x = 0, termWidth do
-            local p = ScreenPtr[offset + x]
-            -- Darken pixels: half brightness + slight green tint
-            -- bit.band(p, 0x007F7F7F) reduces intensity
-            -- 0x7F001100 adds the alpha and a hint of dark green
-            ScreenPtr[offset + x] = bit.bor(bit.band(p, 0x007F7F7F), 0xFF001100)
+    for y = 0, th - 1 do
+        if y >= CANVAS_H then break end
+        local screenOff = y * CANVAS_W
+        local buffOff = y * tw
+        for x = 0, tw - 1 do
+            local px = ptr[buffOff + x]
+            local pa = bit.rshift(px, 24) -- The text "mask"
+            
+            if pa > 0 then
+                local bg = ScreenPtr[screenOff + x]
+                local inv_a = 255 - pa
+                
+                -- Extract individual channels from the background (bg) AND the text (px)
+                -- We blend the background intensity with the text color intensity
+                local r = bit.rshift(bit.band(bg, 0xFF0000) * inv_a, 8) + bit.rshift(bit.band(px, 0xFF0000) * pa, 8)
+                local g = bit.rshift(bit.band(bg, 0x00FF00) * inv_a, 8) + bit.rshift(bit.band(px, 0x00FF00) * pa, 8)
+                local b = bit.rshift(bit.band(bg, 0x0000FF) * inv_a, 8) + bit.rshift(bit.band(px, 0x0000FF) * pa, 8)
+                
+                -- Recompose with bitwise OR
+                ScreenPtr[screenOff + x] = bit.bor(0xFF000000, bit.band(r, 0xFF0000), bit.band(g, 0x00FF00), bit.band(b, 0xFF))
+            end
         end
     end
 end
-
 -- Update Renderer.DrawFrame to include the call
 function Renderer.DrawFrame()
     if not snapshotBaked then
         Render3DScene()
         RenderText()
-        Renderer.DrawTerminalOverlay() -- INJECT HERE
+        BlitTerminalText()
         ScreenImage:replacePixels(ScreenBuffer)
     end
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
 end
-function Renderer.DrawFrame()
-    if not snapshotBaked then
-        Render3DScene()
-        RenderText()
-        Renderer.DrawTerminalOverlay() -- INJECT HERE
-        ScreenImage:replacePixels(ScreenBuffer)
-    end
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setBlendMode("replace")
-    love.graphics.draw(ScreenImage, 0, 0)
-end
+
 return Renderer

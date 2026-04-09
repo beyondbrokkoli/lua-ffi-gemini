@@ -96,6 +96,63 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     croppedCanvas:release()
     return cache
 end
+local ansi_colors = {
+    ["31"] = {1, 0, 0},   -- Red
+    ["32"] = {0, 1, 0},   -- Green
+    ["33"] = {1, 1, 0},   -- Yellow
+    ["36"] = {0, 1, 1},   -- Cyan
+    ["0"]  = {0, 0.8, 0}, -- Reset (default terminal green)
+}
+
+function SysText.BakeTerminal()
+    local font = love.graphics.newFont(16)
+    local w, h = floor(CANVAS_W * 0.4), CANVAS_H
+    local canvas = love.graphics.newCanvas(w, h)
+
+    love.graphics.setCanvas(canvas)
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setFont(font)
+
+    for i, line in ipairs(Engine.terminal.lines) do
+        local curX = 10
+        local curY = 20 + (i * 20)
+        
+        -- Default color
+        love.graphics.setColor(0, 0.8, 0, 1)
+
+        -- This pattern finds ANSI sequences and the text following them
+        -- Chunk 1: The ANSI code (if any), Chunk 2: The text segment
+        for code, text in line:gmatch("\27%[([%d;]*)m([^\27]*)") do
+            -- Update color state if a code exists
+            if code and ansi_colors[code] then
+                local c = ansi_colors[code]
+                love.graphics.setColor(c[1], c[2], c[3], 1)
+            end
+            
+            -- Print segment and advance X
+            if text and #text > 0 then
+                love.graphics.print(text, curX, curY)
+                curX = curX + font:getWidth(text)
+            end
+        end
+        
+        -- Handle lines that have no ANSI codes at all
+        if not line:find("\27") then
+            love.graphics.setColor(0, 0.8, 0, 1)
+            love.graphics.print(line, 10, curY)
+        end
+    end
+
+    love.graphics.setCanvas()
+    local imgData = canvas:newImageData()
+
+    TerminalCache = {
+        ptr = ffi.cast("uint32_t*", imgData:getPointer()),
+        w = w, h = h,
+        _keepAlive = imgData
+    }
+    canvas:release()
+end
 function SysText.InitSlideTextCache(textPayload)
     if SlideTitles then
         for i, caches in pairs(SlideTitles) do
