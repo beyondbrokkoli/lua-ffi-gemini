@@ -262,8 +262,7 @@ local function Render3DScene()
         end
     end
 
-    -- Find the end of Render3DScene() and change it to this:
-    if HUD.open and isZen then -- ONLY draw the board in Zen/Hibernated!
+    if HUD.open then
         DrawSlide(HUD_Mesh_ID, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
     end
 end
@@ -306,18 +305,32 @@ local function BlitUI_3D(obj, cx, cy, depth, scale, alpha, z_bias)
     end
 end
 local function RenderText()
-    -- GHOST EXORCISED: presentationMode is dead. FreeFly hides text.
     if NumSlides == 0 or EngineState == STATE_FREEFLY then return end
-    -- THE BLOCKER: Hide regular slide text if HUD is open in Zen Mode!
-    if HUD.open and (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED) then return end
-    local i = activeSlide
-    local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
-    local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]
-    local cache = SysText.GetCache(i, EngineState)
+
+    local sx, sy, sz, bnx, bny, bnz
+    local cache
+
+    -- THE ROUTER: Fetch the correct 3D origin and 2D cache
+    if HUD.open then
+        local id = HUD_Mesh_ID
+        sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+        bnx, bny, bnz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+        cache = TerminalCache
+    else
+        local i = activeSlide
+        sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
+        bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]
+        cache = SysText.GetCache(i, EngineState)
+    end
+
+    if not cache then return end
+
+    -- THE GOLDEN MATH (Used identically for both!)
     local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
     local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
     local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
     local abs_dot = abs(dot)
+    
     if abs_dot < 0.707 then return end
 
     local t_off = (dot > 0 and 1 or -1) * cache.text_z_offset
@@ -326,13 +339,10 @@ local function RenderText()
     local tdz = (sz + bnz * t_off) - Cam_Z
     local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
 
-    -- OVERVIEW FIX: Increased max depth limit
     if depth < 10 or depth > 15000 then return end
 
     local alpha_close = max(0, min(1, (depth-100)/300))
     local alpha_angle = min(1, (abs_dot-0.707)*5)
-
-    -- OVERVIEW FIX: Let text stay visible up to 15000 units away
     local alpha_far = max(0, min(1, (15000-depth)/2000))
     local final_alpha = alpha_close * alpha_angle * alpha_far * SysText.Alpha
     if final_alpha <= 0.01 then return end
@@ -341,62 +351,17 @@ local function RenderText()
     local current_perspective = (Cam_FOV / depth)
     local draw_scale = current_perspective / cache.opt_scale
 
-    -- THE OFFSET: Shift the cropped canvas UP so it stays anchored to the top!
+    -- Anchors text cleanly to the top based on the crop height
     renderY = renderY - ((cache.orig_h - cache.h) * 0.5) * draw_scale
 
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
-local function RenderHUDText()
-    if not HUD.open or not TerminalCache then return end
-    
-    -- REMOVED: The strict STATE_ZEN lock. 
-    -- Let the text persist through cinematic flight so it doesn't pop in/out jarringly.
-    
-    local id = HUD_Mesh_ID
-    local sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-    
-    -- Because LayoutHUD() multiplied these by sideMultiplier, 
-    -- these normals are already guaranteed to point outward toward the active camera side.
-    local bnx, bny, bnz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-    
-    -- 1. View Angle Cull (Dot Product)
-    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
-    local dist = math.sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
-    local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
-    
-    -- If we are looking at the back of the terminal, don't render the text.
-    if dot < 0.0 then return end 
 
-    -- 2. Apply Z-Offset Push along the Normal Vector
-    local t_off = TerminalCache.text_z_offset
-    local tdx = (sx + bnx * t_off) - Cam_X
-    local tdy = (sy + bny * t_off) - Cam_Y
-    local tdz = (sz + bnz * t_off) - Cam_Z
-    
-    local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
-    if depth < 5 or depth > 15000 then return end
-    
-    local f = Cam_FOV / depth
-    local draw_scale = f / TerminalCache.opt_scale
-    local renderX = HALF_W + (tdx*Cam_RTX + tdz*Cam_RTZ) * f
-    local renderY = HALF_H + (tdx*Cam_UPX + tdy*Cam_UPY + tdz*Cam_UPZ) * f
-    
-    renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale
-    
-    -- 3. Smooth Fading
-    -- Bind it to the global SysText.Alpha so it gracefully fades alongside the main slide text
-    local alpha_close = math.max(0, math.min(1, (depth-50)/100))
-    local final_alpha = alpha_close * SysText.Alpha
-    
-    if final_alpha <= 0.01 then return end
-    
-    BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, final_alpha, 5)
-end
 function Renderer.DrawFrame()
     if not snapshotBaked then
         Render3DScene()
         RenderText()
-        RenderHUDText()
+
         ScreenImage:replacePixels(ScreenBuffer)
     end
     love.graphics.setColor(1, 1, 1, 1)

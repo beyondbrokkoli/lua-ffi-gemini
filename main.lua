@@ -23,45 +23,6 @@ local function lerpAngle(a, b, t)
     local diff = (b - a + pi) % (pi * 2) - pi
     return a + diff * t
 end
-local function LayoutHUD()
-    if not HUD.open or NumSlides == 0 then return end
-    local ts = TargetSlide
-    local sx, sy, sz = Box_X[ts], Box_Y[ts], Box_Z[ts]
-    local nx, ny, nz = Box_NX[ts], Box_NY[ts], Box_NZ[ts]
-    
-    -- 1. Match the exact "Front/Back" side logic of the camera
-    local w, h = Box_HW[ts] * 2, Box_HH[ts] * 2
-    local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
-    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM
-    local fx, fy, fz = sx + nx * dist, sy + ny * dist, sz + nz * dist
-    local bx, by, bz = sx - nx * dist, sy - ny * dist, sz - nz * dist
-    local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
-    local dB = (bx - Cam_X)^2 + (by - Cam_Y)^2 + (bz - Cam_Z)^2
-    local sideMultiplier = (dF <= dB) and 1 or -1
-
-    -- 2. DYNAMIC MESH RESHAPING: Match the slide geometry exactly! (95% scale)
-    local hw, hh, ht = Box_HW[ts] * 0.95, Box_HH[ts] * 0.95, 5
-    local vStart = Obj_VertStart[HUD_Mesh_ID]
-    Vert_LX[vStart+0], Vert_LY[vStart+0], Vert_LZ[vStart+0] = -hw, -hh, -ht
-    Vert_LX[vStart+1], Vert_LY[vStart+1], Vert_LZ[vStart+1] =  hw, -hh, -ht
-    Vert_LX[vStart+2], Vert_LY[vStart+2], Vert_LZ[vStart+2] =  hw,  hh, -ht
-    Vert_LX[vStart+3], Vert_LY[vStart+3], Vert_LZ[vStart+3] = -hw,  hh, -ht
-    Vert_LX[vStart+4], Vert_LY[vStart+4], Vert_LZ[vStart+4] = -hw, -hh,  ht
-    Vert_LX[vStart+5], Vert_LY[vStart+5], Vert_LZ[vStart+5] =  hw, -hh,  ht
-    Vert_LX[vStart+6], Vert_LY[vStart+6], Vert_LZ[vStart+6] =  hw,  hh,  ht
-    Vert_LX[vStart+7], Vert_LY[vStart+7], Vert_LZ[vStart+7] = -hw,  hh,  ht
-
-    -- 3. Snap it 2 units in front of the active face
-    local offset = (Box_HT[ts] + 2) * sideMultiplier
-    Obj_X[HUD_Mesh_ID] = sx + nx * offset
-    Obj_Y[HUD_Mesh_ID] = sy + ny * offset
-    Obj_Z[HUD_Mesh_ID] = sz + nz * offset
-    Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = nx * sideMultiplier, ny * sideMultiplier, nz * sideMultiplier
-    Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts] * sideMultiplier, 0, Box_RTZ[ts] * sideMultiplier
-    Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Box_UPX[ts], Box_UPY[ts], Box_UPZ[ts]
-
-    Renderer.BakeStaticLighting()
-end
 local function UpdateCameraBasis()
     local cy, sy = cos(Cam_Yaw), sin(Cam_Yaw)
     local cp, sp = cos(Cam_Pitch), sin(Cam_Pitch)
@@ -86,26 +47,30 @@ local function BuildCollisionPools()
     end
 end
 local function updateTargetSide()
-    local id = TargetSlide
-    -- If we have no slides, abort safely
-    if NumSlides == 0 or id >= NumSlides then return end
-
-    -- Pull completely from FFI Arrays (No Lua table needed!)
-    local nx, ny, nz = Box_NX[id], Box_NY[id], Box_NZ[id]
-    local sx, sy, sz = Box_X[id], Box_Y[id], Box_Z[id]
-
-    -- Reconstruct full width/height from our Half-Width/Half-Height FFI buffers
-    local w = Box_HW[id] * 2
-    local h = Box_HH[id] * 2
+    local sx, sy, sz, nx, ny, nz, w, h
+    
+    -- BRANCH: Where are we looking?
+    if HUD.open then
+        -- Target the deep-space Terminal mesh
+        local id = HUD_Mesh_ID
+        sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+        nx, ny, nz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+        w, h = 1600, 900
+    else
+        -- Target the normal slide carousel
+        local id = TargetSlide
+        if NumSlides == 0 or id >= NumSlides then return end
+        sx, sy, sz = Box_X[id], Box_Y[id], Box_Z[id]
+        nx, ny, nz = Box_NX[id], Box_NY[id], Box_NZ[id]
+        w, h = Box_HW[id] * 2, Box_HH[id] * 2
+    end
 
     local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
-
     local pad = 200
     if TargetState == STATE_ZEN then pad = 0
     elseif TargetState == STATE_OVERVIEW then pad = 6000 end
 
     local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + pad
-
     local fx, fy, fz = sx + nx * dist, sy + ny * dist, sz + nz * dist
     local bx, by, bz = sx - nx * dist, sy - ny * dist, sz - nz * dist
 
@@ -123,11 +88,9 @@ local function updateTargetSide()
 
     tYaw = math.atan2(dx, dz)
     tPitch = math.atan2(dy, math.sqrt(dx*dx + dz*dz))
-    -- ADD THIS: Force the HUD mesh to recalculate its spawn side
-    -- whenever the engine calculates a new camera target!
+    
     if HUD.open then
         SysText.BakeTerminal()
-        LayoutHUD()
     end
 end
 
@@ -176,7 +139,7 @@ function love.load()
 
         HUD_DIST = 500
         -- Replace the HUD_Mesh_ID line with this:
-        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 1600, 900, 10, C_LATTE)
+        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 8000, 0, 1600, 900, 10, C_LATTE)
         local tStart = Obj_TriStart[HUD_Mesh_ID]
         for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
             Tri_BaseLight[tStart + t] = 1.0
@@ -267,26 +230,21 @@ function love.keypressed(key)
         snapshotBaked = false -- Forces the Zen mode to re-render the frame!
     elseif key == "escape" then love.event.quit() end
 
-    -- Inside love.keypressed
     if key:match("^[1-9]$") then
         local para_map = {["1"]="611", ["2"]="611a", ["3"]="620", ["4"]="622", ["5"]="623", ["6"]="626"}
         local target = para_map[key]
         if target and BGB[target] then
             HUD.open = true
             HUD.lines = { c_cyan .. "> BGB SEARCH: § " .. target .. c_reset, BGB[target].title, "---", BGB[target].text }
-            SysText.BakeTerminal()
-            LayoutHUD() -- Position the board!
-            snapshotBaked = false
+            -- Execute transition to fly/warp to the terminal!
+            ExecuteSlideTransition() 
         end
     end
 
     if key == "t" then
         HUD.open = not HUD.open
-        if HUD.open then 
-            SysText.BakeTerminal()
-            LayoutHUD() -- Position the board!
-        end
-        snapshotBaked = false
+        -- Execute transition to fly to terminal (or fly back to active slide if closing!)
+        ExecuteSlideTransition()
     end
 end
 function love.update(dt)
