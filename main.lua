@@ -28,17 +28,17 @@ local function LayoutHUD()
     local ts = TargetSlide
     local sx, sy, sz = Box_X[ts], Box_Y[ts], Box_Z[ts]
     local nx, ny, nz = Box_NX[ts], Box_NY[ts], Box_NZ[ts]
-    
+
     -- Check which side of the slide the camera is facing
     local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
     local side = (camDX*nx + camDY*ny + camDZ*nz >= 0) and 1 or -1
-    
+
     -- Snap it tight: just 2 units in front of the active face
     local offset = (Box_HT[ts] + 2) * side
     Obj_X[HUD_Mesh_ID] = sx + nx * offset
     Obj_Y[HUD_Mesh_ID] = sy + ny * offset
     Obj_Z[HUD_Mesh_ID] = sz + nz * offset
-    
+
     Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = nx * side, ny * side, nz * side
     Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts] * side, 0, Box_RTZ[ts] * side
     Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Box_UPX[ts], Box_UPY[ts], Box_UPZ[ts]
@@ -151,12 +151,10 @@ function love.load()
         BuildCollisionPools()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()
-        -- COFFEE PALETTE
-        local C_CREAM = 4294306522 -- 0xFFF5EADA
-        local C_LATTE = 4292131280 -- 0xFFEAE0D0
+
         HUD_DIST = 500
         -- Replace the HUD_Mesh_ID line with this:
-        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 1400, 800, 10, C_LATTE) 
+        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 1600, 900, 10, C_LATTE)
         local tStart = Obj_TriStart[HUD_Mesh_ID]
         for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
             Tri_BaseLight[tStart + t] = 1.0
@@ -206,6 +204,7 @@ function love.keypressed(key)
         end
         if TargetSlide ~= oldTarget then
             ExecuteSlideTransition()
+            if HUD.open then LayoutHUD() end
         end
     elseif key == "i" or key == "u" then
         EngineState = STATE_FREEFLY; TargetState = STATE_FREEFLY
@@ -219,6 +218,7 @@ function love.keypressed(key)
             -- Standard behavior: Move to next/prev slide
             TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
             ExecuteSlideTransition()
+            if HUD.open then LayoutHUD() end -- ADD IT HERE!
         end
     elseif key == "j" and EngineState == STATE_FREEFLY then
         isMouseCaptured = not isMouseCaptured; love.mouse.setRelativeMode(isMouseCaptured)
@@ -267,12 +267,6 @@ function love.keypressed(key)
             LayoutHUD() -- Position the board!
         end
         snapshotBaked = false
-    end
-
-    -- Also call it if you change slides while the HUD is open:
-    if TargetSlide ~= oldTarget then
-        ExecuteSlideTransition()
-        if HUD.open then LayoutHUD() end -- Move board to new slide!
     end
 end
 function love.update(dt)

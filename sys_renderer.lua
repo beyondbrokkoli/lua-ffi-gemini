@@ -346,48 +346,25 @@ local function RenderText()
 end
 local function RenderHUDText()
     if not HUD.open or not TerminalCache then return end
-    -- ZEN ONLY LOCK
+    
+    -- ZEN ONLY: Hides the "chopped billboard" illusion in FreeFly
     if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then return end
     
     local id = HUD_Mesh_ID
     local sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-    local bnx, bny, bnz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
     
-    -- Project text relative to the physical board
+    -- Depth from camera to the physical board
     local tdx, tdy, tdz = sx - Cam_X, sy - Cam_Y, sz - Cam_Z
     local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
     if depth < 5 or depth > 5000 then return end
     
     local f = Cam_FOV / depth
-    local draw_scale = (Cam_FOV / depth) / TerminalCache.opt_scale
+    local draw_scale = f / TerminalCache.opt_scale
     
-    -- Calculate Screen position of the board center
+    -- Project the physical board's center onto the 2D screen
     local renderX = HALF_W + (tdx*Cam_RTX + tdz*Cam_RTZ) * f
     local renderY = HALF_H + (tdx*Cam_UPX + tdy*Cam_UPY + tdz*Cam_UPZ) * f
     
-    -- Vertical alignment
-    renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale
-    
-    BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, 1.0, 5)
-end
-local function OLD_RenderHUDText()
-    if not HUD.open or not TerminalCache then return end
-    if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then return end
-    
-    local id = HUD_Mesh_ID
-    local sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-    local bnx, bny, bnz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-    
-    -- Calculate depth relative to the HUD board itself
-    local tdx, tdy, tdz = sx - Cam_X, sy - Cam_Y, sz - Cam_Z
-    local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
-    
-    if depth < 5 or depth > 5000 then return end
-    
-    local draw_scale = (Cam_FOV / depth) / TerminalCache.opt_scale
-    local renderX, renderY = HALF_W, HALF_H
-    
-    -- Align to top of the board
     renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale
     
     BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, 1.0, 5)
