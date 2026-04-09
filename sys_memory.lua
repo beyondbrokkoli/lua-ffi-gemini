@@ -128,6 +128,10 @@ lerpT = 0
 pendingResize = false
 resizeTimer = 0
 
+-- ANSI Colors for the internal HUD buffer
+c_red, c_green, c_yellow = "\27[31m", "\27[32m", "\27[33m"
+c_cyan, c_reset = "\27[36m", "\27[0m"
+
 function ReinitBuffers()
     -- ALWAYS query the true physical pixels, ignoring OS display scaling!
     local pixel_w, pixel_h = love.graphics.getPixelDimensions()

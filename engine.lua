@@ -1,8 +1,14 @@
 local ffi = require("ffi")
 local Factory = require("sys_factory")
 
+-- Inside engine.lua
 local Engine = {
-    terminal = { open = false, scroll = 0, lines = {} }
+    terminal = {
+        open = false,
+        scroll = 0,     -- Keep this for long § text navigation
+        lines = {"> BGB SYSTEM ONLINE", "> DATABASE PENDING..."},
+        mode = "LOOKUP" -- Modes: "LOOKUP" or "SIM"
+    }
 }
 
 -- Bounding Box Tracking for the whole scene

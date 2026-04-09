@@ -6,6 +6,7 @@ local Physics = require("sys_physics")
 local Renderer = require("sys_renderer") -- we will figure this out after we integrated some functionality from main.lua into the 4 modules
 local Factory = require("sys_factory")
 local SysText = require("sys_text") -- same here, also sys_renderer will need adjustments but this one must stay stable until after the presentation, font rendering really is something else
+local BGB = require("bgb")
 
 local floor, ceil, max, min, abs = math.floor, math.ceil, math.max, math.min, math.abs
 local random, sqrt, cos, sin, pi, atan2 = math.random, math.sqrt, math.cos, math.sin, math.pi, math.atan2
