@@ -136,9 +136,16 @@ HUD = {
     lines = {"> BGB HUD INITIALIZED", "> READY FOR QUERY"},
     mode = "LOOKUP"
 }
--- ANSI Colors for the internal HUD buffer
-c_red, c_green, c_yellow = "\27[31m", "\27[32m", "\27[33m"
-c_cyan, c_reset = "\27[36m", "\27[0m"
+-- Inside sys_memory.lua (replace your c_red, c_green block)
+local ESC = string.char(27)
+c_red    = ESC .. "[31m"
+c_green  = ESC .. "[32m"
+c_yellow = ESC .. "[33m"
+c_cyan   = ESC .. "[36m"
+c_reset  = ESC .. "[0m"
+
+HUD_DIST = nil
+HUD_MESH_ID = nil
 
 function ReinitBuffers()
     -- ALWAYS query the true physical pixels, ignoring OS display scaling!

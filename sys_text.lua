@@ -105,49 +105,79 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     croppedCanvas:release()
     return cache
 end
--- In sys_text.lua -> SysText.BakeTerminal
+-- Inside sys_text.lua
 function SysText.BakeTerminal()
     local w, h = floor(CANVAS_W * 0.45), CANVAS_H
     local canvas = love.graphics.newCanvas(w, h)
-    
+
     love.graphics.setCanvas(canvas)
     love.graphics.clear(0, 0, 0, 0) -- Fully transparent
-    
-    local font = Font_Terminal or love.graphics.newFont(24) -- Larger font for readability
+
+    local font = Font_Terminal or love.graphics.newFont(24) -- Larger font
     love.graphics.setFont(font)
-    
+
     -- Draw in WHITE so your original BlitUI_3D stamps it in BLACK
-    love.graphics.setColor(1, 1, 1, 1) 
+    love.graphics.setColor(1, 1, 1, 1)
 
     local padding = 40
     local wrapLimit = w - (padding * 2)
     local curY = 40
 
+    -- THE SILVER BULLET: Dynamic escape pattern hides from the parser!
+    local ANSI_PATTERN = string.char(27) .. "%[[%d;]*m"
+
     for _, line in ipairs(HUD.lines) do
-        -- Strip ANSI codes for the clean, unified slide look
-        local cleanLine = line:gsub("\27%[[%d;]*m", "")
-        
+        -- Strip codes cleanly using the dynamic pattern
+        local cleanLine = line:gsub(ANSI_PATTERN, "")
+
         -- Let Love2D handle the word wrapping natively
         local width, wrappedLines = font:getWrap(cleanLine, wrapLimit)
         love.graphics.printf(cleanLine, padding, curY, wrapLimit, "left")
-        
+
         curY = curY + (#wrappedLines * font:getHeight()) + 5
     end
 
     love.graphics.setCanvas()
     local imgData = canvas:newImageData()
-    
+
     TerminalCache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = w, h = h,
         _keepAlive = imgData,
         -- Scale it perfectly to the physical HUD board distance
-        opt_scale = (Cam_FOV / HUD_DIST), 
+        opt_scale = (Cam_FOV / HUD_DIST),
         orig_h = h
     }
     canvas:release()
 end
-function SysText.InitSlideTextCache()
+-- In sys_text.lua
+
+-- 1. ADD THE PARAMETER HERE
+function SysText.InitSlideTextCache(textPayload) 
+    if SlideTitles then
+        for i, caches in pairs(SlideTitles) do
+            if caches[false] and caches[false]._keepAlive then caches[false]._keepAlive:release() end
+            if caches[true] and caches[true]._keepAlive then caches[true]._keepAlive:release() end
+        end
+    end
+    
+    SlideTitles = {}
+    for i = 0, NumSlides - 1 do
+        -- 2. READ FROM THE PARAMETER INSTEAD OF 'manifest'
+        local slideData = textPayload[i] 
+        
+        -- 3. USE 'slideData.title' INSTEAD OF 'node.text'
+        local titleText = (slideData and slideData.title) or ("SLIDE " .. tostring(i + 1))
+        local content = slideData and slideData.content
+        
+        local w, h = Box_HW[i] * 2, Box_HH[i] * 2
+        SlideTitles[i] = {}
+        SlideTitles[i][false] = BakeSlideText(i, titleText, content, w, h, false)
+        SlideTitles[i][true] = BakeSlideText(i, titleText, content, w, h, true)
+    end
+    collectgarbage("collect")
+end
+function SysText.OLD_InitSlideTextCache()
     -- 1. CLEAN UP THE OLD CACHE FIRST
     if SlideTitles then
         for i, caches in pairs(SlideTitles) do

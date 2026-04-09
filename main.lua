@@ -129,17 +129,16 @@ function love.load()
         BuildCollisionPools()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()
-        -- In main.lua -> love.load()
-        -- After creating the main slides...
         -- COFFEE PALETTE
         local C_CREAM = 4294306522 -- 0xFFF5EADA
         local C_LATTE = 4292131280 -- 0xFFEAE0D0
         HUD_DIST = 500
-        -- Use C_CREAM (or C_LATTE) instead of dark gray!
-        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 800, 600, 10, C_CREAM)
-
-        -- No need to force the lighting to 1.0; let it react to the Dome Light normally!
-
+        -- Replace the HUD_Mesh_ID line with this:
+        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 1400, 800, 5, C_LATTE) 
+        local tStart = Obj_TriStart[HUD_Mesh_ID]
+        for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
+            Tri_BaseLight[tStart + t] = 1.0
+        end
     end
     BGB = require("bgb") -- i will do it here
 end
@@ -298,18 +297,22 @@ function love.update(dt)
     end
 
     UpdateCameraBasis()
-    -- Add this right after UpdateCameraBasis()
-    if HUD.open then
-        -- Lock physical position in front of camera
-        Obj_X[HUD_Mesh_ID] = Cam_X + Cam_FWX * HUD_DIST
-        Obj_Y[HUD_Mesh_ID] = Cam_Y + Cam_FWY * HUD_DIST
-        Obj_Z[HUD_Mesh_ID] = Cam_Z + Cam_FWZ * HUD_DIST
 
-        -- Copy camera rotation basis perfectly
-        Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = Cam_FWX, Cam_FWY, Cam_FWZ
-        Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Cam_RTX, Cam_RTY, Cam_RTZ
-        Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Cam_UPX, Cam_UPY, Cam_UPZ
+    -- Replace the "if HUD.open then" block with this:
+    if HUD.open and NumSlides > 0 then
+        local ts = TargetSlide
+        local offset = Box_HT[ts] + 15 -- Hover exactly 15 units in front of the real slide!
+
+        Obj_X[HUD_Mesh_ID] = Box_X[ts] + Box_NX[ts] * offset
+        Obj_Y[HUD_Mesh_ID] = Box_Y[ts] + Box_NY[ts] * offset
+        Obj_Z[HUD_Mesh_ID] = Box_Z[ts] + Box_NZ[ts] * offset
+
+        -- Perfectly copy the real slide's rotation matrix
+        Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = Box_FWX[ts], Box_FWY[ts], Box_FWZ[ts]
+        Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts], Box_RTY[ts], Box_RTZ[ts]
+        Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Box_UPX[ts], Box_UPY[ts], Box_UPZ[ts]
     end
+
     -- 2. DECOUPLED TEXT ALPHA (Evaluates against the NEW state!)
     local isTextReady = SysText.Update(EngineState, dt)
 
