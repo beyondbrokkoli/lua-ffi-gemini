@@ -13,6 +13,8 @@ local random, sqrt, cos, sin, pi, atan2 = math.random, math.sqrt, math.cos, math
 isFullscreen = true
 isMouseCaptured = false
 snapshotBaked = false
+SlideExposure = 1.0
+
 local PRESENTATION_ZOOM = 1.0
 
 local function lerp(a, b, t) return a + (b - a) * t end
@@ -203,6 +205,12 @@ function love.keypressed(key)
         if EngineState == STATE_PRESENT or EngineState == STATE_OVERVIEW then TargetState = STATE_ZEN
         else TargetState = STATE_PRESENT end
         TriggerContinuousFlight()
+    elseif key == "+" or key == "kp+" then
+        SlideExposure = math.min(3.0, SlideExposure + 0.1)
+        snapshotBaked = false -- Forces the Zen mode to re-render the frame!
+    elseif key == "-" or key == "kp-" then
+        SlideExposure = math.max(0.1, SlideExposure - 0.1)
+        snapshotBaked = false -- Forces the Zen mode to re-render the frame!
     elseif key == "escape" then love.event.quit() end
 end
 function love.update(dt)
@@ -293,18 +301,18 @@ function love.draw()
 
     Renderer.DrawFrame()
 
-    love.graphics.setBlendMode("alpha")
+    -- love.graphics.setBlendMode("alpha")
     -- if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then
         -- placeholder for effects
     -- end
 
-    love.graphics.setFont(Font_UI)
-    love.graphics.setColor(0, 1, 0.5, 1)
-    love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
+    -- love.graphics.setFont(Font_UI)
+    -- love.graphics.setColor(0, 1, 0.5, 1)
+    -- love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
 
     local modeText = "MODE: "
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then modeText = modeText .. "ZEN (CPU HIBERNATION)" else modeText = modeText .. "ACTIVE (PHYSICS ON)" end
-    love.graphics.print(modeText, 10, 30)
+    -- love.graphics.print(modeText, 10, 30)
 
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
         snapshotBaked = true

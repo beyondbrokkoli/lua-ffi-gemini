@@ -1,0 +1,181 @@
+[
+  {
+    "text": "01: THE ELEPHANT",
+    "color": 4294967295,
+    "content": [
+      "~ # THE ELEPHANT IN THE ROOM",
+      "",
+      "~ I called in sick.",
+      "~ I came back to the topic 'Personalkündigung'.",
+      "",
+      "A psychological debuff? | A subtle warning?",
+      "",
+      "~ Management thinks the BGB is a weapon.",
+      "~ But we are going to look at the actual patch notes."
+    ]
+  },
+  {
+    "text": "02: THE 3 EXITS",
+    "color": 4294956800,
+    "content": [
+      "~ # THE GAME THEORY OF TERMINATION",
+      "",
+      "Ordentlich (§ 622 BGB) | The Cooldown",
+      "Standard exit strategy. | Bound by strict time limits.",
+      "",
+      "Außerordentlich (§ 626 BGB) | The Nuke",
+      "Immediate termination. | Requires massive breach of trust.",
+      "",
+      "Aufhebungsvertrag | The Negotiated Surrender",
+      "Mutual agreement to quit. | Warning: Triggers 'Arbeitsamt' debuff."
+    ]
+  },
+  {
+    "text": "03: ORDENTLICH",
+    "color": 4278255615,
+    "content": [
+      "~ # THE COOLDOWN (§ 622 BGB)",
+      "",
+      "~ Playing by the standard rules.",
+      "",
+      "The Notice Period | Respecting the Timer",
+      "A graceful exit. | No explicit reason required from the employee.",
+      "",
+      "Constitutional Right | Article 12 GG",
+      "Berufsfreiheit. | If you can't quit gracefully, it's forced labor."
+    ]
+  },
+  {
+    "text": "04: THE NUKE",
+    "color": 4294923605,
+    "content": [
+      "~ # THE NUKE (§ 626 BGB)",
+      "",
+      "~ Fristlose Kündigung: The Movie Moment.",
+      "",
+      "'Pack your desk right now.' | Bypasses the cooldown timer.",
+      "",
+      "The Condition | Wichtiger Grund",
+      "Requires severe misconduct. | Violence, theft, or extreme insults."
+    ]
+  },
+  {
+    "text": "05: THE SURRENDER",
+    "color": 4287273954,
+    "content": [
+      "~ # THE NEGOTIATED SURRENDER",
+      "",
+      "~ Aufhebungsvertrag: The Golden Handshake.",
+      "",
+      "Constructive Dismissal | 'Expected to quit'",
+      "Boss creates hostile environment? | Illegal.",
+      "",
+      "The Abfindung | The Severance",
+      "Get paid to leave quietly. | But beware the 12-week block."
+    ]
+  },
+  {
+    "text": "06: THE TRUST METER",
+    "color": 4294967295,
+    "content": [
+      "~ # THE TRUST METER (ABMAHNUNG)",
+      "",
+      "~ You cannot drop the Nuke without a target lock.",
+      "",
+      "The Yellow Card | Documented Strikes",
+      "Minor offenses require warnings. | Warns of contract termination.",
+      "",
+      "Proportionality | The Law of Balance",
+      "You cannot nuke a fly. | Use the lowest effective force."
+    ]
+  },
+  {
+    "text": "07: THE DAMAGE CHECK",
+    "color": 4294956800,
+    "content": [
+      "~ # THE DAMAGE CHECK",
+      "",
+      "~ SOURCE CODE: § 626 Abs. 1 BGB",
+      "",
+      "'...nicht zugemutet werden kann.' | Cannot be reasonably expected.",
+      "",
+      "The Stat Check | High Difficulty",
+      "Must prove keeping you for 4 weeks | causes catastrophic damage."
+    ]
+  },
+  {
+    "text": "08: ANTI-RAGE-QUIT",
+    "color": 4278255615,
+    "content": [
+      "~ # THE ANTI-RAGE-QUIT MECHANIC",
+      "",
+      "~ SOURCE CODE: § 626 Abs. 2 BGB",
+      "",
+      "The 14-Day Timer | Strict Window",
+      "Boss finds out about misconduct? | They have exactly two weeks.",
+      "",
+      "Miss the window? | The Nuke is deactivated.",
+      "The offense is wiped from active cache. | Must use ordinary cooldown."
+    ]
+  },
+  {
+    "text": "09: THE MEHMET TRAP",
+    "color": 4294928820,
+    "content": [
+      "~ # THE MEHMET TRAP",
+      "",
+      "~ The Friction: § 113 BGB vs. § 22 BBiG",
+      "",
+      "Jasmin (17, Job) | Can quit alone (Generaleinwilligung)",
+      "Mehmet (17, Azubi) | Locked in. Needs parents' double signature.",
+      "",
+      "Azubi God-Mode | Invincibility Frames",
+      "After probation, standard firing is disabled. | You are wearing plot armor."
+    ]
+  },
+  {
+    "text": "10: THE BOSS FIGHT",
+    "color": 4294923605,
+    "content": [
+      "~ # THE 1.30€ BOSS FIGHT",
+      "",
+      "~ Der Emmely-Fall (BAG: 2 AZR 541/09)",
+      "",
+      "The Player | 31 years of flawless loyalty.",
+      "The Crime | Kept two deposit receipts worth 1.30€.",
+      "",
+      "The Employer's Play | Dropped the Nuke.",
+      "Theft is theft. | Instant termination."
+    ]
+  },
+  {
+    "text": "11: THE RULING",
+    "color": 4281514325,
+    "content": [
+      "~ # THE SUPREME COURT RULING",
+      "",
+      "~ The Reversal (2010)",
+      "",
+      "The Trust Buffer | Decades of Loyalty",
+      "31 flawless years creates massive trust. | 1.30€ cannot instantly one-shot it.",
+      "",
+      "The Verdict | Termination Invalid",
+      "Employer failed the mechanics. | An 'Abmahnung' was required."
+    ]
+  },
+  {
+    "text": "12: THE META",
+    "color": 4294967295,
+    "content": [
+      "~ # MASTERING THE META",
+      "",
+      "~ Personalkündigung is not an execution.",
+      "",
+      "The Burden of Proof | Lies with the Employer",
+      "The system prevents emotional firing. | Mathematical precision.",
+      "",
+      "The Balance Patch | BGB & BBiG",
+      "Protects the young from rash choices. | Protects veterans from ruthless cuts."
+    ]
+  }
+]
