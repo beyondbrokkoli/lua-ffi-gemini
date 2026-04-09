@@ -30,172 +30,171 @@ local RADIUS = 7500
 --    { text = "THE META", content = {"~ # MASTERING THE META", "", "~ Personalkündigung is not an execution.", "", "The Burden of Proof | Lies with the Employer", "The system prevents emotional firing. | Mathematical precision.", "", "The Balance Patch | BGB & BBiG", "Protects the young from rash choices. | Protects veterans from ruthless cuts.", "", "~ Know your cooldowns. Know your shields. Play the game."} }
 -- }
 -- CONTENT TEMPLATES (The 12-Slide Personalkündigung Overview)
+-- CONTENT TEMPLATES (The 12-Slide Personalkündigung Overview)
 local templates = {
     { 
-        text = "EINLEITUNG", 
+        text = "THE DESTRUCTOR", 
         content = {
-            "~ # THE ELEPHANT IN THE ROOM", 
+            "~ # PERSONALKÜNDIGUNG", 
             "", 
-            "~ I call in sick for a few days.", 
-            "~ I return to the assigned topic: 'Personalkündigung'.", 
+            "~ § 611a: The Constructor. | § 620: The Destructor.", 
+            "~ Instantiates an employment. | Defines how it ceases to exist.", 
             "", 
-            "Zufall? | Oder ein Wink mit dem Zaunpfahl?", 
-            "", 
-            "~ Let's take a clear-headed look at the BGB.", 
-            "~ The rules of parting ways."
+            "Absatz 1: The Timer Runs Out", 
+            "If a contract has a fixed term, it self-terminates.", 
+            "No action is required. The system cleans it up naturally."
         } 
     },
     { 
-        text = "DIE 3 WEGE", 
+        text = "SHADOWED FOREST", 
         content = {
-            "~ # DIE DREI WEGE (THE 3 EXITS)", 
+            "~ # THE PATH THAT DOES NOT STRAY", 
             "", 
-            "Ordentlich (§ 622 BGB) | The Standard Exit", 
-            "Regular notice periods. | The normal way to leave.", 
+            "\"I found myself within a shadowed forest,", 
+            "~ for I had lost the path that does not stray...\"", 
             "", 
-            "Außerordentlich (§ 626 BGB) | The Immediate Exit", 
-            "Fristlose Kündigung. | Requires a severe breach of trust.", 
+            "§ 620 Absatz 2 BGB | The Open-Ended Loop", 
+            "Most contracts run forever. | To break the loop, we must enter the thicket.", 
             "", 
-            "Aufhebungsvertrag | Mutual Agreement", 
-            "Both parties agree to end it. | Warning: Arbeitsamt Sperrzeit."
+            "~ §§ 621 to 626: The manual override protocols."
         } 
     },
     { 
-        text = "ORDENTLICH", 
+        text = "THE TRILOGY", 
         content = {
-            "~ # ORDENTLICHE KÜNDIGUNG (§ 622 BGB)", 
+            "~ # THE TRILOGY OF EXITS", 
+            "", 
+            "Ordentlich (§ 622) | Außerordentlich (§ 626)", 
+            "Unilateral: The Cooldown. | Unilateral: The Hard Reset.", 
+            "", 
+            "Aufhebungsvertrag | The Negotiated Surrender", 
+            "Bilateral: Mutual consent.", 
+            "Triggers a 12-week penalty block at the Arbeitsamt."
+        } 
+    },
+    { 
+        text = "THE COOLDOWN", 
+        content = {
+            "~ # THE COOLDOWN (§ 622 BGB)", 
             "", 
             "~ The standard administrative procedure.", 
             "", 
-            "Kündigungsfrist | Notice Periods", 
-            "Scales with tenure. | Usually starts at 4 weeks to the 15th/End of Month.", 
+            "Tenure Armor | Scaling Notice Periods", 
+            "The longer you survive, | the longer the employer's cooldown.", 
             "", 
-            "Article 12 GG | Berufsfreiheit", 
-            "The constitutional right to choose your job. | If you can't quit, it's forced labor."
+            "Max Level | 7 Months", 
+            "After 20 years, the employer must wait 7 months to the end of a month."
         } 
     },
     { 
-        text = "FRISTLOS", 
+        text = "HARD RESET", 
         content = {
-            "~ # AUßERORDENTLICH (§ 626 BGB)", 
+            "~ # THE HARD RESET (§ 626 BGB)", 
             "", 
-            "~ The 'Movie' Moment: Pack your desk.", 
+            "~ Fristlose Kündigung aus wichtigem Grund.", 
             "", 
             "Instant Termination | Bypasses the standard notice period.", 
+            "Wichtiger Grund | Requires severe misconduct (e.g., theft, violence).", 
             "", 
-            "Wichtiger Grund | The Prerequisite", 
-            "Requires severe misconduct. | Theft, violence, extreme insults, etc."
+            "~ Warning: This is an overpowered mechanic.", 
+            "~ The system requires strict validation checks to execute."
         } 
     },
     { 
-        text = "AUFHEBUNG", 
+        text = "VALIDATION", 
         content = {
-            "~ # AUFHEBUNGSVERTRAG", 
+            "~ # STRICT VALIDATION CHECKS", 
             "", 
-            "~ The Negotiated Surrender.", 
+            "§ 623: The Format Validator | Wet Ink Only", 
+            "Digital inputs (WhatsApp, Email) throw a syntax error and are void.", 
             "", 
-            "Mutual Consent | 'We agree to disagree'", 
-            "Bypasses standard protection laws. | Often sweetened with severance (Abfindung).", 
-            "", 
-            "The Catch | Die Sperrzeit", 
-            "Quitting voluntarily? | The employment agency blocks benefits for 12 weeks."
+            "§ 626 Abs. 2: The 14-Day Timer | Strict Execution Window", 
+            "Incident discovered? You have exactly two weeks to trigger the reset.", 
+            "Missed the window? Fallback to standard cooldown required."
         } 
     },
     { 
-        text = "ABMAHNUNG", 
+        text = "TRUST METER", 
         content = {
-            "~ # DIE ABMAHNUNG (THE WARNING)", 
+            "~ # THE TRUST METER (ABMAHNUNG)", 
             "", 
-            "~ You rarely get fired without a warning.", 
+            "~ You rarely trigger a hard reset without a warning.", 
             "", 
             "The Yellow Card | Verhaltensbedingte Kündigung", 
-            "Documents specific misconduct. | Warns of termination if repeated.", 
+            "Documents specific bugs in behavior. | Warns of system termination.", 
             "", 
             "Proportionality | Verhältnismäßigkeit", 
-            "Minor offenses require warnings first. | Only extreme cases skip this step."
+            "You cannot use maximum force on a minor error. | Escalate logically."
         } 
     },
     { 
-        text = "ZUMUTBARKEIT", 
+        text = "DAMAGE CHECK", 
         content = {
-            "~ # DIE ZUMUTBARKEIT", 
+            "~ # THE DAMAGE CHECK", 
             "", 
             "~ SOURCE CODE: § 626 Abs. 1 BGB", 
             "", 
-            "The legal hurdle is intentionally high.", 
+            "'Nicht zugemutet werden kann' | Cannot be reasonably expected.", 
             "", 
-            "'Nicht zugemutet werden kann' | 'Cannot be reasonably expected'", 
-            "Employer must prove that keeping the employee | for even 4 more weeks is impossible."
+            "The Stat Check | High Difficulty", 
+            "Employer must prove that keeping the employee for even 4 more weeks", 
+            "causes unreasonable, catastrophic damage to the operation."
         } 
     },
     { 
-        text = "2-WOCHEN-FRIST", 
-        content = {
-            "~ # DIE 2-WOCHEN-FRIST", 
-            "", 
-            "~ SOURCE CODE: § 626 Abs. 2 BGB", 
-            "", 
-            "The Time Limit | A strict window to act", 
-            "Employer learns of severe misconduct? | They have exactly 14 days to fire you.", 
-            "", 
-            "Miss the window? | The immediate exit is blocked.", 
-            "They must fall back | to the standard notice period."
-        } 
-    },
-    { 
-        text = "AZUBIS", 
+        text = "AZUBI ARMOR", 
         content = {
             "~ # BESONDERER SCHUTZ: AZUBIS", 
             "", 
             "~ § 113 BGB vs. § 22 BBiG", 
             "", 
-            "Minor Worker (e.g., 17) | Can quit relatively easily.", 
-            "Apprentice (Azubi) | Educational focus restricts easy termination.", 
+            "Minor Worker (e.g., 17) | Can quit easily (Generaleinwilligung).", 
+            "Apprentice (Azubi) | Locked in. Needs double parental signature.", 
             "", 
-            "After Probation | Enhanced Protection", 
-            "Ordinary termination by the employer | is effectively removed from the law."
+            "After Probation | Invincibility Frames", 
+            "Standard employer termination is effectively disabled by the BBiG."
         } 
     },
     { 
-        text = "DER FALL EMMELY", 
+        text = "BOSS FIGHT", 
         content = {
             "~ # DER FALL 'EMMELY'", 
             "", 
             "~ BAG-Urteil (2010): 2 AZR 541/09", 
             "", 
-            "The Employee | 31 years of flawless service as a cashier.", 
+            "The Player | 31 years of flawless service as a cashier.", 
             "The Incident | Redeemed two found deposit receipts worth 1.30€.", 
             "", 
-            "The Employer's Reaction | Fristlose Kündigung.", 
-            "Argument: Theft is theft. | Trust is permanently destroyed."
+            "The Employer's Play | Triggered the Hard Reset (§ 626).", 
+            "Argument | Theft is theft. Trust is permanently destroyed."
         } 
     },
     { 
-        text = "DAS URTEIL", 
+        text = "THE RULING", 
         content = {
-            "~ # DAS URTEIL (THE RULING)", 
+            "~ # THE SUPREME COURT RULING", 
             "", 
-            "~ The Supreme Labor Court disagrees.", 
+            "~ The Reversal (2010)", 
             "", 
-            "Decades of Loyalty | The Trust Buffer", 
-            "31 flawless years build immense trust. | A 1.30€ mistake cannot instantly erase it.", 
+            "The Trust Buffer | Decades of Loyalty", 
+            "31 flawless years build massive trust. | 1.30€ cannot instantly one-shot it.", 
             "", 
-            "The Verdict | Disproportionate", 
-            "Termination was invalid. | An 'Abmahnung' would have sufficed."
+            "The Verdict | Termination Invalid", 
+            "Employer failed the mechanics. | An 'Abmahnung' was required."
         } 
     },
     { 
-        text = "FAZIT", 
+        text = "POST-GAME", 
         content = {
-            "~ # FAZIT (SUMMARY)", 
+            "~ # POST-GAME LOOT & FAZIT", 
             "", 
-            "~ Personalkündigung is highly regulated.", 
+            "~ Memory Leaks and Garbage Collection", 
             "", 
-            "The Burden of Proof | Lies heavily with the employer.", 
-            "The law balances power. | Protects against emotional or arbitrary firing.", 
+            "§ 629: The Job Hunt Buff | Employer must grant paid time off to interview.", 
+            "§ 630: The Final Log File | The Zeugnis (Simple or Advanced).", 
             "", 
-            "Know the rules. | Read the contract.", 
-            "~ Thank you for your attention."
+            "~ The BGB is a highly regulated message-passing architecture.", 
+            "~ Know your cooldowns. Read the logs. Master the system."
         } 
     }
 }
