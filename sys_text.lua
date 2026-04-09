@@ -105,36 +105,36 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     croppedCanvas:release()
     return cache
 end
--- Inside sys_text.lua
 function SysText.BakeTerminal()
-    local w, h = floor(CANVAS_W * 0.45), CANVAS_H
-    local canvas = love.graphics.newCanvas(w, h)
+    local w, h = 1400, 800 -- Matches the new HUD_Mesh_ID dimensions
 
+    -- EXACT SAME CRISP SCALING MATH AS NORMAL SLIDES
+    local distScale = max(h, w * (CANVAS_H / CANVAS_W))
+    local optDist = (distScale * Cam_FOV) / CANVAS_H * 1.0
+    local text_depth = optDist - 5
+    local optimal_scale = (Cam_FOV / text_depth)
+    
+    local virtW = max(1, floor(w * optimal_scale))
+    local virtH = max(1, floor(h * optimal_scale))
+    
+    local canvas = love.graphics.newCanvas(virtW, virtH)
     love.graphics.setCanvas(canvas)
-    love.graphics.clear(0, 0, 0, 0) -- Fully transparent
-
-    local font = Font_Terminal or love.graphics.newFont(24) -- Larger font
+    love.graphics.clear(0, 0, 0, 0)
+    
+    -- Dynamic font sizing matching the slides!
+    local font = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
     love.graphics.setFont(font)
+    love.graphics.setColor(1, 1, 1, 1) -- White for black stencil
 
-    -- Draw in WHITE so your original BlitUI_3D stamps it in BLACK
-    love.graphics.setColor(1, 1, 1, 1)
-
-    local padding = 40
-    local wrapLimit = w - (padding * 2)
-    local curY = 40
-
-    -- THE SILVER BULLET: Dynamic escape pattern hides from the parser!
-    local ANSI_PATTERN = string.char(27) .. "%[[%d;]*m"
+    local paddingX = floor(virtW * 0.05)
+    local wrapLimit = virtW - (paddingX * 2)
+    local curY = floor(virtH * 0.05)
 
     for _, line in ipairs(HUD.lines) do
-        -- Strip codes cleanly using the dynamic pattern
-        local cleanLine = line:gsub(ANSI_PATTERN, "")
-
-        -- Let Love2D handle the word wrapping natively
+        local cleanLine = line:gsub("%c%[[%d;]*m", "")
         local width, wrappedLines = font:getWrap(cleanLine, wrapLimit)
-        love.graphics.printf(cleanLine, padding, curY, wrapLimit, "left")
-
-        curY = curY + (#wrappedLines * font:getHeight()) + 5
+        love.graphics.printf(cleanLine, paddingX, curY, wrapLimit, "left")
+        curY = curY + (#wrappedLines * font:getHeight()) + floor(virtH * 0.01)
     end
 
     love.graphics.setCanvas()
@@ -142,16 +142,14 @@ function SysText.BakeTerminal()
 
     TerminalCache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
-        w = w, h = h,
+        w = virtW, h = virtH,
         _keepAlive = imgData,
-        -- Scale it perfectly to the physical HUD board distance
-        opt_scale = (Cam_FOV / HUD_DIST),
-        orig_h = h
+        text_z_offset = 5,
+        opt_scale = optimal_scale,
+        orig_h = virtH
     }
     canvas:release()
 end
--- In sys_text.lua
-
 -- 1. ADD THE PARAMETER HERE
 function SysText.InitSlideTextCache(textPayload) 
     if SlideTitles then

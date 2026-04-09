@@ -134,7 +134,7 @@ function love.load()
         local C_LATTE = 4292131280 -- 0xFFEAE0D0
         HUD_DIST = 500
         -- Replace the HUD_Mesh_ID line with this:
-        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 1400, 800, 5, C_LATTE) 
+        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 1400, 800, 10, C_LATTE) 
         local tStart = Obj_TriStart[HUD_Mesh_ID]
         for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
             Tri_BaseLight[tStart + t] = 1.0
@@ -298,8 +298,9 @@ function love.update(dt)
 
     UpdateCameraBasis()
 
-    -- Replace the "if HUD.open then" block with this:
-    if HUD.open and NumSlides > 0 then
+    -- Find your "if HUD.open then" block and REPLACE IT with this:
+    -- This forces the HUD to ONLY appear and lock into place during Zen/Hibernation
+    if HUD.open and (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED) and NumSlides > 0 then
         local ts = TargetSlide
         local offset = Box_HT[ts] + 15 -- Hover exactly 15 units in front of the real slide!
 

@@ -347,12 +347,30 @@ end
 
 local function RenderHUDText()
     if not HUD.open or not TerminalCache then return end
-
-    local depth = HUD_DIST
+    
+    -- Grab the coordinates of the physical HUD board
+    local sx, sy, sz = Obj_X[HUD_Mesh_ID], Obj_Y[HUD_Mesh_ID], Obj_Z[HUD_Mesh_ID]
+    local bnx, bny, bnz = Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID]
+    
+    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
+    local dist = sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
+    local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
+    if abs(dot) < 0.707 then return end
+    
+    local t_off = (dot > 0 and 1 or -1) * TerminalCache.text_z_offset
+    local tdx = (sx + bnx * t_off) - Cam_X
+    local tdy = (sy + bny * t_off) - Cam_Y
+    local tdz = (sz + bnz * t_off) - Cam_Z
+    local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
+    if depth < 10 or depth > 15000 then return end
+    
+    local renderX, renderY = HALF_W, HALF_H
     local draw_scale = (Cam_FOV / depth) / TerminalCache.opt_scale
-
-    -- Blit to the exact center of the screen, floating right in front of the HUD Board (z_bias = 5)
-    BlitUI_3D(TerminalCache, HALF_W, HALF_H, depth, draw_scale, 1.0, 5)
+    
+    -- Anchor text to the top-left of the board!
+    renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale
+    
+    BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, 1.0, 5)
 end
 function Renderer.DrawFrame()
     if not snapshotBaked then
