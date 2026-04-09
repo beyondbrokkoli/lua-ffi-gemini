@@ -1,6 +1,15 @@
 local ffi = require("ffi")
 local max, min, floor = math.max, math.min, math.floor
 local SysText = { Alpha = 0.0 }
+
+local ansi_to_love = {
+    ["31"] = {1, 0.2, 0.2}, -- Red
+    ["32"] = {0.2, 1, 0.2}, -- Green
+    ["33"] = {1, 1, 0.2},   -- Yellow
+    ["36"] = {0.2, 1, 1},   -- Cyan
+    ["0"]  = {0, 0.8, 0},   -- Reset
+}
+
 local function ParseSlideLine(rawText, fonts)
     local pipePos = rawText:find("|")
     if pipePos then
@@ -96,28 +105,21 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     croppedCanvas:release()
     return cache
 end
--- Add this to sys_text.lua
-local ansi_to_love = {
-    ["31"] = {1, 0.2, 0.2}, -- Red (Errors)
-    ["32"] = {0.2, 1, 0.2}, -- Green (Success)
-    ["33"] = {1, 1, 0.2},   -- Yellow (Warnings)
-    ["36"] = {0.2, 1, 1},   -- Cyan (Headers)
-    ["0"]  = {0, 0.8, 0},   -- Reset (Default Terminal Green)
-}
-
-function SysText.BakeTerminal()
+function SysText.BakeTerminal(lines)
     local font = love.graphics.newFont(16)
-    local w, h = floor(CANVAS_W * 0.4), CANVAS_H
+    local w, h = floor(CANVAS_W * 0.45), CANVAS_H
     local canvas = love.graphics.newCanvas(w, h)
-
+    love.graphics.setFont(Font_Terminal)
     love.graphics.setCanvas(canvas)
+    -- PARADIGM SHIFT: Bake the translucent background here!
+    -- Alpha 0.6 means BlitUI_3D will naturally let 40% of the 3D scene bleed through.
     love.graphics.clear(0, 0, 0, 0)
-    love.graphics.setFont(font)
 
+    -- ... [Your exact same ANSI parsing loop here] ...
     for i, line in ipairs(HUD.lines) do
         local curX = 10
         local curY = 20 + (i * 20)
-        love.graphics.setColor(0, 0.8, 0, 1) -- Default
+        love.graphics.setColor(1, 1, 1, 1) -- Default
 
         -- Parser: Finds ANSI codes and the text segments following them
         -- We handle lines with and without codes seamlessly
@@ -131,21 +133,21 @@ function SysText.BakeTerminal()
             curX = curX + font:getWidth(text)
             lastPos = pos
         end
-        
+
         -- Catch any remaining text if no codes were present
         if lastPos == 1 then
             love.graphics.print(line, 10, curY)
         end
     end
-
     love.graphics.setCanvas()
     local imgData = canvas:newImageData()
-    
-    -- Replace the old cache with the new high-res bake
     TerminalCache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = w, h = h,
-        _keepAlive = imgData
+        _keepAlive = imgData,
+        -- Match the optical scale to the HUD's physical distance!
+        opt_scale = (Cam_FOV / HUD_DIST),
+        orig_h = h
     }
     canvas:release()
 end

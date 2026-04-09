@@ -261,6 +261,10 @@ local function Render3DScene()
             DrawProp(Pool_Solid[i], cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
         end
     end
+    -- Add this at the very end of Render3DScene()
+    if HUD.open then
+        DrawSlide(HUD_Mesh_ID, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
+    end
 end
 local function BlitUI_3D(obj, cx, cy, depth, scale, alpha, z_bias)
     if not obj or alpha <= 0.01 or scale < 0.01 then return end
@@ -340,40 +344,20 @@ local function RenderText()
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
 
-local function BlitTerminalText()
-    if not TerminalCache or not Engine.terminal.open then return end
-    local ptr, tw, th = TerminalCache.ptr, TerminalCache.w, TerminalCache.h
-    
-    for y = 0, th - 1 do
-        if y >= CANVAS_H then break end
-        local screenOff = y * CANVAS_W
-        local buffOff = y * tw
-        for x = 0, tw - 1 do
-            local px = ptr[buffOff + x]
-            local pa = bit.rshift(px, 24) -- The text "mask"
-            
-            if pa > 0 then
-                local bg = ScreenPtr[screenOff + x]
-                local inv_a = 255 - pa
-                
-                -- Extract individual channels from the background (bg) AND the text (px)
-                -- We blend the background intensity with the text color intensity
-                local r = bit.rshift(bit.band(bg, 0xFF0000) * inv_a, 8) + bit.rshift(bit.band(px, 0xFF0000) * pa, 8)
-                local g = bit.rshift(bit.band(bg, 0x00FF00) * inv_a, 8) + bit.rshift(bit.band(px, 0x00FF00) * pa, 8)
-                local b = bit.rshift(bit.band(bg, 0x0000FF) * inv_a, 8) + bit.rshift(bit.band(px, 0x0000FF) * pa, 8)
-                
-                -- Recompose with bitwise OR
-                ScreenPtr[screenOff + x] = bit.bor(0xFF000000, bit.band(r, 0xFF0000), bit.band(g, 0x00FF00), bit.band(b, 0xFF))
-            end
-        end
-    end
+local function RenderHUDText()
+    if not HUD.open or not TerminalCache then return end
+
+    local depth = HUD_DIST
+    local draw_scale = (Cam_FOV / depth) / TerminalCache.opt_scale
+
+    -- Blit to the exact center of the screen, floating right in front of the HUD Board (z_bias = 5)
+    BlitUI_3D(TerminalCache, HALF_W, HALF_H, depth, draw_scale, 1.0, 5)
 end
--- Update Renderer.DrawFrame to include the call
 function Renderer.DrawFrame()
     if not snapshotBaked then
         Render3DScene()
         RenderText()
-        BlitTerminalText()
+        RenderHUDText()
         ScreenImage:replacePixels(ScreenBuffer)
     end
     love.graphics.setColor(1, 1, 1, 1)

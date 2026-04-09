@@ -108,7 +108,7 @@ function love.load()
     ReinitBuffers()
     love.mouse.setRelativeMode(isMouseCaptured)
     Font_UI = love.graphics.newFont(14)
-
+    Font_Terminal = love.graphics.newFont(16)
     local sceneState = Engine.Boot()
     if sceneState then
         -- NO MORE MANIFEST GLOBAL!
@@ -129,6 +129,15 @@ function love.load()
         BuildCollisionPools()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()
+        -- Add this right after Renderer.BakeStaticLighting()
+        HUD_DIST = 500 -- Distance from camera lens
+        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 800, 600, 10, 0xFF181818) -- Dark Gray Board
+
+        -- Manually max out its lighting so it perfectly obeys SlideExposure (+ / -)
+        local tStart = Obj_TriStart[HUD_Mesh_ID]
+        for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
+            Tri_BaseLight[tStart + t] = 1.0
+        end
     end
     BGB = require("bgb") -- i will do it here
 end
@@ -219,21 +228,21 @@ function love.keypressed(key)
         local para_map = {["1"]="611", ["2"]="611a", ["3"]="620", ["4"]="622", ["5"]="623", ["6"]="626"}
         local target = para_map[key]
         if target and BGB[target] then
-            Engine.terminal.open = true
-            Engine.terminal.lines = {
+            HUD.open = true
+            HUD.lines = {
                 c_cyan .. "> BGB SEARCH: § " .. target .. c_reset,
                 BGB[target].title,
                 "---",
                 BGB[target].text
             }
             -- TARGET ACQUIRED: Bake the new text into memory
-            SysText.BakeTerminal(Engine.terminal.lines) 
-            snapshotBaked = false 
+            SysText.BakeTerminal()
+            snapshotBaked = false
         end
     end
     -- Toggle HUD
     if key == "t" then
-        Engine.terminal.open = not Engine.terminal.open
+        HUD.open = not HUD.open
         snapshotBaked = false
     end
 end
@@ -287,7 +296,18 @@ function love.update(dt)
     end
 
     UpdateCameraBasis()
+    -- Add this right after UpdateCameraBasis()
+    if HUD.open then
+        -- Lock physical position in front of camera
+        Obj_X[HUD_Mesh_ID] = Cam_X + Cam_FWX * HUD_DIST
+        Obj_Y[HUD_Mesh_ID] = Cam_Y + Cam_FWY * HUD_DIST
+        Obj_Z[HUD_Mesh_ID] = Cam_Z + Cam_FWZ * HUD_DIST
 
+        -- Copy camera rotation basis perfectly
+        Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = Cam_FWX, Cam_FWY, Cam_FWZ
+        Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Cam_RTX, Cam_RTY, Cam_RTZ
+        Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Cam_UPX, Cam_UPY, Cam_UPZ
+    end
     -- 2. DECOUPLED TEXT ALPHA (Evaluates against the NEW state!)
     local isTextReady = SysText.Update(EngineState, dt)
 

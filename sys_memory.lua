@@ -112,6 +112,8 @@ isMouseCaptured = true
 globalTimer = 0
 Font_Slide = nil
 Font_UI = nil
+Font_Terminal = nil
+
 SlideTitles = {}
 -- THE FINITE STATE MACHINE (FSM)
 STATE_FREEFLY    = 0
