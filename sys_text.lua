@@ -105,6 +105,7 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     croppedCanvas:release()
     return cache
 end
+-- In sys_text.lua -> SysText.BakeTerminal
 function SysText.BakeTerminal()
     local w, h = floor(CANVAS_W * 0.45), CANVAS_H
     local canvas = love.graphics.newCanvas(w, h)
@@ -112,7 +113,7 @@ function SysText.BakeTerminal()
     love.graphics.setCanvas(canvas)
     love.graphics.clear(0, 0, 0, 0) -- Fully transparent
     
-    local font = Font_Terminal or love.graphics.newFont(16)
+    local font = Font_Terminal or love.graphics.newFont(24) -- Larger font for readability
     love.graphics.setFont(font)
     
     -- Draw in WHITE so your original BlitUI_3D stamps it in BLACK
@@ -140,28 +141,34 @@ function SysText.BakeTerminal()
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = w, h = h,
         _keepAlive = imgData,
+        -- Scale it perfectly to the physical HUD board distance
         opt_scale = (Cam_FOV / HUD_DIST), 
         orig_h = h
     }
     canvas:release()
 end
-function SysText.InitSlideTextCache(textPayload)
+function SysText.InitSlideTextCache()
+    -- 1. CLEAN UP THE OLD CACHE FIRST
     if SlideTitles then
         for i, caches in pairs(SlideTitles) do
             if caches[false] and caches[false]._keepAlive then caches[false]._keepAlive:release() end
             if caches[true] and caches[true]._keepAlive then caches[true]._keepAlive:release() end
         end
     end
+
     SlideTitles = {}
     for i = 0, NumSlides - 1 do
-        local slideData = textPayload[i]
-        local titleText = (slideData and slideData.title) or ("SLIDE " .. tostring(i + 1))
-        local content = slideData and slideData.content
+        local node = manifest[i]
+        local titleText = (node and node.text) or ("SLIDE " .. tostring(i + 1))
+        local content = node and node.content
         local w, h = Box_HW[i] * 2, Box_HH[i] * 2
+
         SlideTitles[i] = {}
+        -- Bake both paddings natively!
         SlideTitles[i][false] = BakeSlideText(i, titleText, content, w, h, false)
-        SlideTitles[i][true] = BakeSlideText(i, titleText, content, w, h, true)
+        SlideTitles[i][true]  = BakeSlideText(i, titleText, content, w, h, true)
     end
+    -- FORCE A GC CYCLE
     collectgarbage("collect")
 end
 function SysText.GetCache(slideIdx, currentState)
