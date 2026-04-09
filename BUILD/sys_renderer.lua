@@ -133,10 +133,14 @@ else
 final_light = final_light + 0.15
 end
 end
+final_light = final_light * (SlideExposure or 1.0)
 local tc = Tri_Color[idx]
 local r = bit.band(bit.rshift(tc,16),0xFF) * final_light
 local g = bit.band(bit.rshift(tc,8),0xFF) * final_light
 local b = bit.band(tc,0xFF) * final_light
+r = math.max(0, math.min(255, r))
+g = math.max(0, math.min(255, g))
+b = math.max(0, math.min(255, b))
 RasterizeTriangle(px1,py1,pz1, px2,py2,pz2, px3,py3,pz3, 0xFF000000+bit.lshift(r,16)+bit.lshift(g,8)+b)
 end
 end
