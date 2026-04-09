@@ -244,6 +244,8 @@ function love.keypressed(key)
     -- Toggle HUD
     if key == "t" then
         HUD.open = not HUD.open
+        -- If we are opening it, bake the current lines immediately
+        if HUD.open then SysText.BakeTerminal() end
         snapshotBaked = false
     end
 end
