@@ -344,8 +344,33 @@ local function RenderText()
 
     BlitUI_3D(cache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
-
 local function RenderHUDText()
+    if not HUD.open or not TerminalCache then return end
+    -- ZEN ONLY LOCK
+    if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then return end
+    
+    local id = HUD_Mesh_ID
+    local sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+    local bnx, bny, bnz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
+    
+    -- Project text relative to the physical board
+    local tdx, tdy, tdz = sx - Cam_X, sy - Cam_Y, sz - Cam_Z
+    local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
+    if depth < 5 or depth > 5000 then return end
+    
+    local f = Cam_FOV / depth
+    local draw_scale = (Cam_FOV / depth) / TerminalCache.opt_scale
+    
+    -- Calculate Screen position of the board center
+    local renderX = HALF_W + (tdx*Cam_RTX + tdz*Cam_RTZ) * f
+    local renderY = HALF_H + (tdx*Cam_UPX + tdy*Cam_UPY + tdz*Cam_UPZ) * f
+    
+    -- Vertical alignment
+    renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale
+    
+    BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, 1.0, 5)
+end
+local function OLD_RenderHUDText()
     if not HUD.open or not TerminalCache then return end
     if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then return end
     

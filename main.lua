@@ -23,7 +23,29 @@ local function lerpAngle(a, b, t)
     local diff = (b - a + pi) % (pi * 2) - pi
     return a + diff * t
 end
--- removed slide.api
+local function LayoutHUD()
+    if not HUD.open or NumSlides == 0 then return end
+    local ts = TargetSlide
+    local sx, sy, sz = Box_X[ts], Box_Y[ts], Box_Z[ts]
+    local nx, ny, nz = Box_NX[ts], Box_NY[ts], Box_NZ[ts]
+    
+    -- Check which side of the slide the camera is facing
+    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
+    local side = (camDX*nx + camDY*ny + camDZ*nz >= 0) and 1 or -1
+    
+    -- Snap it tight: just 2 units in front of the active face
+    local offset = (Box_HT[ts] + 2) * side
+    Obj_X[HUD_Mesh_ID] = sx + nx * offset
+    Obj_Y[HUD_Mesh_ID] = sy + ny * offset
+    Obj_Z[HUD_Mesh_ID] = sz + nz * offset
+    
+    Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = nx * side, ny * side, nz * side
+    Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts] * side, 0, Box_RTZ[ts] * side
+    Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Box_UPX[ts], Box_UPY[ts], Box_UPZ[ts]
+
+    -- Re-bake the light for its new position!
+    Renderer.BakeStaticLighting()
+end
 local function UpdateCameraBasis()
     local cy, sy = cos(Cam_Yaw), sin(Cam_Yaw)
     local cp, sp = cos(Cam_Pitch), sin(Cam_Pitch)
@@ -224,29 +246,33 @@ function love.keypressed(key)
         SlideExposure = math.max(0.1, SlideExposure - 0.1)
         snapshotBaked = false -- Forces the Zen mode to re-render the frame!
     elseif key == "escape" then love.event.quit() end
-    -- Update this block in main.lua -> love.keypressed
+
+    -- Inside love.keypressed
     if key:match("^[1-9]$") then
         local para_map = {["1"]="611", ["2"]="611a", ["3"]="620", ["4"]="622", ["5"]="623", ["6"]="626"}
         local target = para_map[key]
         if target and BGB[target] then
             HUD.open = true
-            HUD.lines = {
-                c_cyan .. "> BGB SEARCH: § " .. target .. c_reset,
-                BGB[target].title,
-                "---",
-                BGB[target].text
-            }
-            -- TARGET ACQUIRED: Bake the new text into memory
+            HUD.lines = { c_cyan .. "> BGB SEARCH: § " .. target .. c_reset, BGB[target].title, "---", BGB[target].text }
             SysText.BakeTerminal()
+            LayoutHUD() -- Position the board!
             snapshotBaked = false
         end
     end
-    -- Toggle HUD
+
     if key == "t" then
         HUD.open = not HUD.open
-        -- If we are opening it, bake the current lines immediately
-        if HUD.open then SysText.BakeTerminal() end
+        if HUD.open then 
+            SysText.BakeTerminal()
+            LayoutHUD() -- Position the board!
+        end
         snapshotBaked = false
+    end
+
+    -- Also call it if you change slides while the HUD is open:
+    if TargetSlide ~= oldTarget then
+        ExecuteSlideTransition()
+        if HUD.open then LayoutHUD() end -- Move board to new slide!
     end
 end
 function love.update(dt)
@@ -300,26 +326,7 @@ function love.update(dt)
 
     UpdateCameraBasis()
 
-    if HUD.open and (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED) and NumSlides > 0 then
-        local ts = TargetSlide
-        local sx, sy, sz = Box_X[ts], Box_Y[ts], Box_Z[ts]
-        local nx, ny, nz = Box_NX[ts], Box_NY[ts], Box_NZ[ts]
 
-        -- 1. Determine which side of the slide is closer to the camera
-        local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
-        local side = (camDX*nx + camDY*ny + camDZ*nz >= 0) and 1 or -1
-
-        -- 2. Position the board 15 units in front of THAT side
-        local offset = (Box_HT[ts] + 15) * side
-        Obj_X[HUD_Mesh_ID] = sx + nx * offset
-        Obj_Y[HUD_Mesh_ID] = sy + ny * offset
-        Obj_Z[HUD_Mesh_ID] = sz + nz * offset
-
-        -- 3. Orient the board to face the camera perfectly
-        Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = nx * side, ny * side, nz * side
-        Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts] * side, 0, Box_RTZ[ts] * side
-        Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Box_UPX[ts], Box_UPY[ts], Box_UPZ[ts]
-    end
     -- 2. DECOUPLED TEXT ALPHA (Evaluates against the NEW state!)
     local isTextReady = SysText.Update(EngineState, dt)
 

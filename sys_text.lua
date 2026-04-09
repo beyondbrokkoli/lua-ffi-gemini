@@ -106,43 +106,40 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     return cache
 end
 function SysText.BakeTerminal()
-    local w, h = 1400, 800 -- Matches the new HUD_Mesh_ID dimensions!
+    local w, h = 1400, 800 -- Matches the HUD_Mesh_ID
     
-    -- EXACT SAME CRISP SCALING MATH AS NORMAL SLIDES
-    local ts = TargetSlide or 0
-    local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
-    local optDist = (distScale * Cam_FOV) / CANVAS_H * 1.0
-    local text_depth = optDist - 20 -- Terminal text is slightly closer
+    -- Use the same distance math as the slides to calculate DPI scale
+    local distScale = max(h, w * (CANVAS_H / CANVAS_W))
+    local optDist = (distScale * Cam_FOV) / CANVAS_H
+    local text_depth = optDist - 20 -- Project slightly in front of the board
     local optimal_scale = (Cam_FOV / text_depth)
     
-    local virtW = math.max(1, math.floor(w * optimal_scale))
-    local virtH = math.max(1, math.floor(h * optimal_scale))
+    local virtW = max(1, floor(w * optimal_scale))
+    local virtH = max(1, floor(h * optimal_scale))
     
     local canvas = love.graphics.newCanvas(virtW, virtH)
     love.graphics.setCanvas(canvas)
     love.graphics.clear(0, 0, 0, 0)
     
-    -- Draw in WHITE for the black stencil effect
-    love.graphics.setColor(1, 1, 1, 1) 
-    
-    -- Dynamic font sizing identical to the slides!
-    local font = love.graphics.newFont(math.max(8, math.floor((h * 0.05) * optimal_scale)))
+    -- Use White for the Black Stencil effect
+    love.graphics.setColor(1, 1, 1, 1)
+    local font = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
     love.graphics.setFont(font)
 
-    local paddingX = math.floor(virtW * 0.05)
+    local paddingX = floor(virtW * 0.05)
     local wrapLimit = virtW - (paddingX * 2)
-    local curY = math.floor(virtH * 0.05)
+    local curY = floor(virtH * 0.05)
 
+    local ANSI_PATTERN = string.char(27) .. "%[[%d;]*m"
     for _, line in ipairs(HUD.lines) do
-        local cleanLine = line:gsub("%c%[[%d;]*m", "")
-        local width, wrappedLines = font:getWrap(cleanLine, wrapLimit)
+        local cleanLine = line:gsub(ANSI_PATTERN, "")
+        local _, wrappedLines = font:getWrap(cleanLine, wrapLimit)
         love.graphics.printf(cleanLine, paddingX, curY, wrapLimit, "left")
-        curY = curY + (#wrappedLines * font:getHeight()) + math.floor(virtH * 0.01)
+        curY = curY + (#wrappedLines * font:getHeight()) + floor(virtH * 0.01)
     end
 
     love.graphics.setCanvas()
     local imgData = canvas:newImageData()
-
     TerminalCache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = virtW, h = virtH,
@@ -153,6 +150,7 @@ function SysText.BakeTerminal()
     }
     canvas:release()
 end
+
 function SysText.InitSlideTextCache(textPayload) 
     if SlideTitles then
         for i, caches in pairs(SlideTitles) do
@@ -160,16 +158,15 @@ function SysText.InitSlideTextCache(textPayload)
             if caches[true] and caches[true]._keepAlive then caches[true]._keepAlive:release() end
         end
     end
-    
+
     SlideTitles = {}
     for i = 0, NumSlides - 1 do
         -- 2. READ FROM THE PARAMETER INSTEAD OF 'manifest'
-        local slideData = textPayload[i] 
-        
-        -- 3. USE 'slideData.title' INSTEAD OF 'node.text'
+        local slideData = textPayload[i]
+
         local titleText = (slideData and slideData.title) or ("SLIDE " .. tostring(i + 1))
         local content = slideData and slideData.content
-        
+
         local w, h = Box_HW[i] * 2, Box_HH[i] * 2
         SlideTitles[i] = {}
         SlideTitles[i][false] = BakeSlideText(i, titleText, content, w, h, false)
@@ -177,30 +174,7 @@ function SysText.InitSlideTextCache(textPayload)
     end
     collectgarbage("collect")
 end
-function SysText.OLD_InitSlideTextCache()
-    -- 1. CLEAN UP THE OLD CACHE FIRST
-    if SlideTitles then
-        for i, caches in pairs(SlideTitles) do
-            if caches[false] and caches[false]._keepAlive then caches[false]._keepAlive:release() end
-            if caches[true] and caches[true]._keepAlive then caches[true]._keepAlive:release() end
-        end
-    end
 
-    SlideTitles = {}
-    for i = 0, NumSlides - 1 do
-        local node = manifest[i]
-        local titleText = (node and node.text) or ("SLIDE " .. tostring(i + 1))
-        local content = node and node.content
-        local w, h = Box_HW[i] * 2, Box_HH[i] * 2
-
-        SlideTitles[i] = {}
-        -- Bake both paddings natively!
-        SlideTitles[i][false] = BakeSlideText(i, titleText, content, w, h, false)
-        SlideTitles[i][true]  = BakeSlideText(i, titleText, content, w, h, true)
-    end
-    -- FORCE A GC CYCLE
-    collectgarbage("collect")
-end
 function SysText.GetCache(slideIdx, currentState)
     local useZenCache = (currentState == STATE_ZEN or currentState == STATE_HIBERNATED)
     return SlideTitles[slideIdx][useZenCache]
