@@ -68,17 +68,13 @@ local process_manifest = {
     ["main.lua"] = "BUILD/main.lua",
     ["engine.lua"] = "BUILD/engine.lua",
     ["build_orchestrator.lua"] = "BUILD/build_orchestrator.lua",
-    ["rebuild_orchestrator.lua"] = "BUILD/rebuild_orchestrator.lua",
---    ["generate_scene.lua"] = "BUILD/generate_scene.lua",
+--    ["rebuild_orchestrator.lua"] = "BUILD/rebuild_orchestrator.lua",
     ["sys_text.lua"] = "BUILD/sys_text.lua",
     ["sys_factory.lua"] = "BUILD/sys_factory.lua",
     ["conf.lua"] = "BUILD/conf.lua"
 
 }
-local raw_manifest = {
-    ["dkjson.lua"] = "BUILD/dkjson.lua",
-    ["scene.json"] = "BUILD/scene.json"
-}
+local raw_manifest = {} -- now empty because we broke free from json chains
 local function setup_build_dir(dir)
     local ok = os.execute("test -d " .. dir)
     if ok == 0 or ok == true then

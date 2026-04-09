@@ -108,7 +108,7 @@ function love.load()
     love.mouse.setRelativeMode(isMouseCaptured)
     Font_UI = love.graphics.newFont(14)
 
-    local sceneState = Engine.Boot("scene.json")
+    local sceneState = Engine.Boot()
     if sceneState then
         -- NO MORE MANIFEST GLOBAL!
         NumSlides = sceneState.NumSlides
