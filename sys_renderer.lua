@@ -308,6 +308,8 @@ end
 local function RenderText()
     -- GHOST EXORCISED: presentationMode is dead. FreeFly hides text.
     if NumSlides == 0 or EngineState == STATE_FREEFLY then return end
+    -- THE BLOCKER: Hide regular slide text if HUD is open in Zen Mode!
+    if HUD.open and (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED) then return end
     local i = activeSlide
     local sx, sy, sz = Box_X[i], Box_Y[i], Box_Z[i]
     local bnx, bny, bnz = Box_NX[i], Box_NY[i], Box_NZ[i]
@@ -346,25 +348,25 @@ local function RenderText()
 end
 local function RenderHUDText()
     if not HUD.open or not TerminalCache then return end
-    
-    -- ZEN ONLY: Hides the "chopped billboard" illusion in FreeFly
     if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then return end
     
     local id = HUD_Mesh_ID
     local sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+    local bnx, bny, bnz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
     
-    -- Depth from camera to the physical board
+    -- Calculate depth relative to the physical board's world position
     local tdx, tdy, tdz = sx - Cam_X, sy - Cam_Y, sz - Cam_Z
     local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
-    if depth < 5 or depth > 5000 then return end
+    if depth < 5 or depth > 15000 then return end
     
     local f = Cam_FOV / depth
     local draw_scale = f / TerminalCache.opt_scale
     
-    -- Project the physical board's center onto the 2D screen
+    -- Project the physical board center onto the screen
     local renderX = HALF_W + (tdx*Cam_RTX + tdz*Cam_RTZ) * f
     local renderY = HALF_H + (tdx*Cam_UPX + tdy*Cam_UPY + tdz*Cam_UPZ) * f
     
+    -- Shift the vertical anchor cleanly to the top of the canvas
     renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale
     
     BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, 1.0, 5)

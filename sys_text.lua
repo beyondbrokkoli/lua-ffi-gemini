@@ -106,12 +106,15 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     return cache
 end
 function SysText.BakeTerminal()
-    local w, h = 1400, 800 -- Matches the HUD_Mesh_ID
+    local ts = TargetSlide or 0
+    -- Inherit the physical dimensions we just created in main.lua
+    local w = (Box_HW[ts] * 2) * 0.95
+    local h = (Box_HH[ts] * 2) * 0.95
     
-    -- Use the same distance math as the slides to calculate DPI scale
+    -- EXACT SAME CRISP SCALING MATH AS NORMAL SLIDES
     local distScale = max(h, w * (CANVAS_H / CANVAS_W))
     local optDist = (distScale * Cam_FOV) / CANVAS_H
-    local text_depth = optDist - 20 -- Project slightly in front of the board
+    local text_depth = optDist - 2 -- Very tight 2-unit snap to the HUD board
     local optimal_scale = (Cam_FOV / text_depth)
     
     local virtW = max(1, floor(w * optimal_scale))
@@ -120,9 +123,9 @@ function SysText.BakeTerminal()
     local canvas = love.graphics.newCanvas(virtW, virtH)
     love.graphics.setCanvas(canvas)
     love.graphics.clear(0, 0, 0, 0)
-    
-    -- Use White for the Black Stencil effect
     love.graphics.setColor(1, 1, 1, 1)
+    
+    -- Dynamic font sizing matching the slides!
     local font = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
     love.graphics.setFont(font)
 
@@ -144,7 +147,7 @@ function SysText.BakeTerminal()
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = virtW, h = virtH,
         _keepAlive = imgData,
-        text_z_offset = 5,
+        text_z_offset = 2,
         opt_scale = optimal_scale,
         orig_h = virtH
     }

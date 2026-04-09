@@ -28,22 +28,38 @@ local function LayoutHUD()
     local ts = TargetSlide
     local sx, sy, sz = Box_X[ts], Box_Y[ts], Box_Z[ts]
     local nx, ny, nz = Box_NX[ts], Box_NY[ts], Box_NZ[ts]
+    
+    -- 1. Match the exact "Front/Back" side logic of the camera
+    local w, h = Box_HW[ts] * 2, Box_HH[ts] * 2
+    local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
+    local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM
+    local fx, fy, fz = sx + nx * dist, sy + ny * dist, sz + nz * dist
+    local bx, by, bz = sx - nx * dist, sy - ny * dist, sz - nz * dist
+    local dF = (fx - Cam_X)^2 + (fy - Cam_Y)^2 + (fz - Cam_Z)^2
+    local dB = (bx - Cam_X)^2 + (by - Cam_Y)^2 + (bz - Cam_Z)^2
+    local sideMultiplier = (dF <= dB) and 1 or -1
 
-    -- Check which side of the slide the camera is facing
-    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
-    local side = (camDX*nx + camDY*ny + camDZ*nz >= 0) and 1 or -1
+    -- 2. DYNAMIC MESH RESHAPING: Match the slide geometry exactly! (95% scale)
+    local hw, hh, ht = Box_HW[ts] * 0.95, Box_HH[ts] * 0.95, 5
+    local vStart = Obj_VertStart[HUD_Mesh_ID]
+    Vert_LX[vStart+0], Vert_LY[vStart+0], Vert_LZ[vStart+0] = -hw, -hh, -ht
+    Vert_LX[vStart+1], Vert_LY[vStart+1], Vert_LZ[vStart+1] =  hw, -hh, -ht
+    Vert_LX[vStart+2], Vert_LY[vStart+2], Vert_LZ[vStart+2] =  hw,  hh, -ht
+    Vert_LX[vStart+3], Vert_LY[vStart+3], Vert_LZ[vStart+3] = -hw,  hh, -ht
+    Vert_LX[vStart+4], Vert_LY[vStart+4], Vert_LZ[vStart+4] = -hw, -hh,  ht
+    Vert_LX[vStart+5], Vert_LY[vStart+5], Vert_LZ[vStart+5] =  hw, -hh,  ht
+    Vert_LX[vStart+6], Vert_LY[vStart+6], Vert_LZ[vStart+6] =  hw,  hh,  ht
+    Vert_LX[vStart+7], Vert_LY[vStart+7], Vert_LZ[vStart+7] = -hw,  hh,  ht
 
-    -- Snap it tight: just 2 units in front of the active face
-    local offset = (Box_HT[ts] + 2) * side
+    -- 3. Snap it 2 units in front of the active face
+    local offset = (Box_HT[ts] + 2) * sideMultiplier
     Obj_X[HUD_Mesh_ID] = sx + nx * offset
     Obj_Y[HUD_Mesh_ID] = sy + ny * offset
     Obj_Z[HUD_Mesh_ID] = sz + nz * offset
-
-    Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = nx * side, ny * side, nz * side
-    Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts] * side, 0, Box_RTZ[ts] * side
+    Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = nx * sideMultiplier, ny * sideMultiplier, nz * sideMultiplier
+    Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts] * sideMultiplier, 0, Box_RTZ[ts] * sideMultiplier
     Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Box_UPX[ts], Box_UPY[ts], Box_UPZ[ts]
 
-    -- Re-bake the light for its new position!
     Renderer.BakeStaticLighting()
 end
 local function UpdateCameraBasis()
