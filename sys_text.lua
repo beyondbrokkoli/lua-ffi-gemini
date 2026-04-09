@@ -106,35 +106,38 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     return cache
 end
 function SysText.BakeTerminal()
-    local w, h = 1400, 800 -- Matches the new HUD_Mesh_ID dimensions
-
+    local w, h = 1400, 800 -- Matches the new HUD_Mesh_ID dimensions!
+    
     -- EXACT SAME CRISP SCALING MATH AS NORMAL SLIDES
-    local distScale = max(h, w * (CANVAS_H / CANVAS_W))
+    local ts = TargetSlide or 0
+    local distScale = math.max(h, w * (CANVAS_H / CANVAS_W))
     local optDist = (distScale * Cam_FOV) / CANVAS_H * 1.0
-    local text_depth = optDist - 5
+    local text_depth = optDist - 20 -- Terminal text is slightly closer
     local optimal_scale = (Cam_FOV / text_depth)
     
-    local virtW = max(1, floor(w * optimal_scale))
-    local virtH = max(1, floor(h * optimal_scale))
+    local virtW = math.max(1, math.floor(w * optimal_scale))
+    local virtH = math.max(1, math.floor(h * optimal_scale))
     
     local canvas = love.graphics.newCanvas(virtW, virtH)
     love.graphics.setCanvas(canvas)
     love.graphics.clear(0, 0, 0, 0)
     
-    -- Dynamic font sizing matching the slides!
-    local font = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
+    -- Draw in WHITE for the black stencil effect
+    love.graphics.setColor(1, 1, 1, 1) 
+    
+    -- Dynamic font sizing identical to the slides!
+    local font = love.graphics.newFont(math.max(8, math.floor((h * 0.05) * optimal_scale)))
     love.graphics.setFont(font)
-    love.graphics.setColor(1, 1, 1, 1) -- White for black stencil
 
-    local paddingX = floor(virtW * 0.05)
+    local paddingX = math.floor(virtW * 0.05)
     local wrapLimit = virtW - (paddingX * 2)
-    local curY = floor(virtH * 0.05)
+    local curY = math.floor(virtH * 0.05)
 
     for _, line in ipairs(HUD.lines) do
         local cleanLine = line:gsub("%c%[[%d;]*m", "")
         local width, wrappedLines = font:getWrap(cleanLine, wrapLimit)
         love.graphics.printf(cleanLine, paddingX, curY, wrapLimit, "left")
-        curY = curY + (#wrappedLines * font:getHeight()) + floor(virtH * 0.01)
+        curY = curY + (#wrappedLines * font:getHeight()) + math.floor(virtH * 0.01)
     end
 
     love.graphics.setCanvas()
@@ -150,7 +153,6 @@ function SysText.BakeTerminal()
     }
     canvas:release()
 end
--- 1. ADD THE PARAMETER HERE
 function SysText.InitSlideTextCache(textPayload) 
     if SlideTitles then
         for i, caches in pairs(SlideTitles) do

@@ -261,9 +261,9 @@ local function Render3DScene()
             DrawProp(Pool_Solid[i], cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
         end
     end
-    -- In sys_renderer.lua -> Render3DScene()
-    if HUD.open then
-        -- Draw the Cream board right in front of the camera
+
+    -- Find the end of Render3DScene() and change it to this:
+    if HUD.open and isZen then -- ONLY draw the board in Zen/Hibernated!
         DrawSlide(HUD_Mesh_ID, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
     end
 end
@@ -346,9 +346,11 @@ local function RenderText()
 end
 
 local function RenderHUDText()
+    -- Only render if HUD is open AND we are safely landed in Zen Mode
     if not HUD.open or not TerminalCache then return end
+    if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then return end
     
-    -- Grab the coordinates of the physical HUD board
+    -- Grab the coordinates of the physical HUD board we placed in main.lua
     local sx, sy, sz = Obj_X[HUD_Mesh_ID], Obj_Y[HUD_Mesh_ID], Obj_Z[HUD_Mesh_ID]
     local bnx, bny, bnz = Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID]
     
@@ -365,7 +367,8 @@ local function RenderHUDText()
     if depth < 10 or depth > 15000 then return end
     
     local renderX, renderY = HALF_W, HALF_H
-    local draw_scale = (Cam_FOV / depth) / TerminalCache.opt_scale
+    local current_perspective = (Cam_FOV / depth)
+    local draw_scale = current_perspective / TerminalCache.opt_scale
     
     -- Anchor text to the top-left of the board!
     renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale

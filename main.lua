@@ -298,22 +298,26 @@ function love.update(dt)
 
     UpdateCameraBasis()
 
-    -- Find your "if HUD.open then" block and REPLACE IT with this:
-    -- This forces the HUD to ONLY appear and lock into place during Zen/Hibernation
     if HUD.open and (EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED) and NumSlides > 0 then
         local ts = TargetSlide
-        local offset = Box_HT[ts] + 15 -- Hover exactly 15 units in front of the real slide!
+        local sx, sy, sz = Box_X[ts], Box_Y[ts], Box_Z[ts]
+        local nx, ny, nz = Box_NX[ts], Box_NY[ts], Box_NZ[ts]
 
-        Obj_X[HUD_Mesh_ID] = Box_X[ts] + Box_NX[ts] * offset
-        Obj_Y[HUD_Mesh_ID] = Box_Y[ts] + Box_NY[ts] * offset
-        Obj_Z[HUD_Mesh_ID] = Box_Z[ts] + Box_NZ[ts] * offset
+        -- 1. Determine which side of the slide is closer to the camera
+        local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
+        local side = (camDX*nx + camDY*ny + camDZ*nz >= 0) and 1 or -1
 
-        -- Perfectly copy the real slide's rotation matrix
-        Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = Box_FWX[ts], Box_FWY[ts], Box_FWZ[ts]
-        Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts], Box_RTY[ts], Box_RTZ[ts]
+        -- 2. Position the board 15 units in front of THAT side
+        local offset = (Box_HT[ts] + 15) * side
+        Obj_X[HUD_Mesh_ID] = sx + nx * offset
+        Obj_Y[HUD_Mesh_ID] = sy + ny * offset
+        Obj_Z[HUD_Mesh_ID] = sz + nz * offset
+
+        -- 3. Orient the board to face the camera perfectly
+        Obj_FWX[HUD_Mesh_ID], Obj_FWY[HUD_Mesh_ID], Obj_FWZ[HUD_Mesh_ID] = nx * side, ny * side, nz * side
+        Obj_RTX[HUD_Mesh_ID], Obj_RTY[HUD_Mesh_ID], Obj_RTZ[HUD_Mesh_ID] = Box_RTX[ts] * side, 0, Box_RTZ[ts] * side
         Obj_UPX[HUD_Mesh_ID], Obj_UPY[HUD_Mesh_ID], Obj_UPZ[HUD_Mesh_ID] = Box_UPX[ts], Box_UPY[ts], Box_UPZ[ts]
     end
-
     -- 2. DECOUPLED TEXT ALPHA (Evaluates against the NEW state!)
     local isTextReady = SysText.Update(EngineState, dt)
 
