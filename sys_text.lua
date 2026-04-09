@@ -96,12 +96,13 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     croppedCanvas:release()
     return cache
 end
-local ansi_colors = {
-    ["31"] = {1, 0, 0},   -- Red
-    ["32"] = {0, 1, 0},   -- Green
-    ["33"] = {1, 1, 0},   -- Yellow
-    ["36"] = {0, 1, 1},   -- Cyan
-    ["0"]  = {0, 0.8, 0}, -- Reset (default terminal green)
+-- Add this to sys_text.lua
+local ansi_to_love = {
+    ["31"] = {1, 0.2, 0.2}, -- Red (Errors)
+    ["32"] = {0.2, 1, 0.2}, -- Green (Success)
+    ["33"] = {1, 1, 0.2},   -- Yellow (Warnings)
+    ["36"] = {0.2, 1, 1},   -- Cyan (Headers)
+    ["0"]  = {0, 0.8, 0},   -- Reset (Default Terminal Green)
 }
 
 function SysText.BakeTerminal()
@@ -113,39 +114,34 @@ function SysText.BakeTerminal()
     love.graphics.clear(0, 0, 0, 0)
     love.graphics.setFont(font)
 
-    for i, line in ipairs(Engine.terminal.lines) do
+    for i, line in ipairs(HUD.lines) do
         local curX = 10
         local curY = 20 + (i * 20)
-        
-        -- Default color
-        love.graphics.setColor(0, 0.8, 0, 1)
+        love.graphics.setColor(0, 0.8, 0, 1) -- Default
 
-        -- This pattern finds ANSI sequences and the text following them
-        -- Chunk 1: The ANSI code (if any), Chunk 2: The text segment
-        for code, text in line:gmatch("\27%[([%d;]*)m([^\27]*)") do
-            -- Update color state if a code exists
-            if code and ansi_colors[code] then
-                local c = ansi_colors[code]
+        -- Parser: Finds ANSI codes and the text segments following them
+        -- We handle lines with and without codes seamlessly
+        local lastPos = 1
+        for code, text, pos in line:gmatch("\27%[([%d;]*)m([^\27]*)()") do
+            if ansi_to_love[code] then
+                local c = ansi_to_love[code]
                 love.graphics.setColor(c[1], c[2], c[3], 1)
             end
-            
-            -- Print segment and advance X
-            if text and #text > 0 then
-                love.graphics.print(text, curX, curY)
-                curX = curX + font:getWidth(text)
-            end
+            love.graphics.print(text, curX, curY)
+            curX = curX + font:getWidth(text)
+            lastPos = pos
         end
         
-        -- Handle lines that have no ANSI codes at all
-        if not line:find("\27") then
-            love.graphics.setColor(0, 0.8, 0, 1)
+        -- Catch any remaining text if no codes were present
+        if lastPos == 1 then
             love.graphics.print(line, 10, curY)
         end
     end
 
     love.graphics.setCanvas()
     local imgData = canvas:newImageData()
-
+    
+    -- Replace the old cache with the new high-res bake
     TerminalCache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = w, h = h,

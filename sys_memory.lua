@@ -127,7 +127,13 @@ TargetState = STATE_ZEN
 lerpT = 0
 pendingResize = false
 resizeTimer = 0
-
+-- RELOCATED TERMINAL STATE (The HUD Registry)
+HUD = {
+    open = false,
+    scroll = 0,
+    lines = {"> BGB HUD INITIALIZED", "> READY FOR QUERY"},
+    mode = "LOOKUP"
+}
 -- ANSI Colors for the internal HUD buffer
 c_red, c_green, c_yellow = "\27[31m", "\27[32m", "\27[33m"
 c_cyan, c_reset = "\27[36m", "\27[0m"

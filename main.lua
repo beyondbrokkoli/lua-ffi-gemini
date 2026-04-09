@@ -214,22 +214,23 @@ function love.keypressed(key)
         SlideExposure = math.max(0.1, SlideExposure - 0.1)
         snapshotBaked = false -- Forces the Zen mode to re-render the frame!
     elseif key == "escape" then love.event.quit() end
-    -- Number keys (1-9) trigger the Lookup
+    -- Update this block in main.lua -> love.keypressed
     if key:match("^[1-9]$") then
         local para_map = {["1"]="611", ["2"]="611a", ["3"]="620", ["4"]="622", ["5"]="623", ["6"]="626"}
         local target = para_map[key]
-        
         if target and BGB[target] then
             Engine.terminal.open = true
             Engine.terminal.lines = {
-                "> § " .. target .. ": " .. BGB[target].title,
+                c_cyan .. "> BGB SEARCH: § " .. target .. c_reset,
+                BGB[target].title,
                 "---",
                 BGB[target].text
             }
-            snapshotBaked = false -- The beautiful state-track wake-up!
+            -- TARGET ACQUIRED: Bake the new text into memory
+            SysText.BakeTerminal(Engine.terminal.lines) 
+            snapshotBaked = false 
         end
     end
-    
     -- Toggle HUD
     if key == "t" then
         Engine.terminal.open = not Engine.terminal.open
