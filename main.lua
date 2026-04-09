@@ -123,6 +123,12 @@ local function updateTargetSide()
 
     tYaw = math.atan2(dx, dz)
     tPitch = math.atan2(dy, math.sqrt(dx*dx + dz*dz))
+    -- ADD THIS: Force the HUD mesh to recalculate its spawn side
+    -- whenever the engine calculates a new camera target!
+    if HUD.open then
+        SysText.BakeTerminal()
+        LayoutHUD()
+    end
 end
 
 local function TriggerContinuousFlight()
@@ -220,7 +226,6 @@ function love.keypressed(key)
         end
         if TargetSlide ~= oldTarget then
             ExecuteSlideTransition()
-            if HUD.open then LayoutHUD() end
         end
     elseif key == "i" or key == "u" then
         EngineState = STATE_FREEFLY; TargetState = STATE_FREEFLY
@@ -234,7 +239,6 @@ function love.keypressed(key)
             -- Standard behavior: Move to next/prev slide
             TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
             ExecuteSlideTransition()
-            if HUD.open then LayoutHUD() end -- ADD IT HERE!
         end
     elseif key == "j" and EngineState == STATE_FREEFLY then
         isMouseCaptured = not isMouseCaptured; love.mouse.setRelativeMode(isMouseCaptured)

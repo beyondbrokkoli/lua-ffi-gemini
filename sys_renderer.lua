@@ -348,30 +348,50 @@ local function RenderText()
 end
 local function RenderHUDText()
     if not HUD.open or not TerminalCache then return end
-    if EngineState ~= STATE_ZEN and EngineState ~= STATE_HIBERNATED then return end
+    
+    -- REMOVED: The strict STATE_ZEN lock. 
+    -- Let the text persist through cinematic flight so it doesn't pop in/out jarringly.
     
     local id = HUD_Mesh_ID
     local sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
+    
+    -- Because LayoutHUD() multiplied these by sideMultiplier, 
+    -- these normals are already guaranteed to point outward toward the active camera side.
     local bnx, bny, bnz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
     
-    -- Calculate depth relative to the physical board's world position
-    local tdx, tdy, tdz = sx - Cam_X, sy - Cam_Y, sz - Cam_Z
+    -- 1. View Angle Cull (Dot Product)
+    local camDX, camDY, camDZ = Cam_X - sx, Cam_Y - sy, Cam_Z - sz
+    local dist = math.sqrt(camDX*camDX + camDY*camDY + camDZ*camDZ)
+    local dot = (dist > 0) and ((camDX/dist)*bnx + (camDY/dist)*bny + (camDZ/dist)*bnz) or 0
+    
+    -- If we are looking at the back of the terminal, don't render the text.
+    if dot < 0.0 then return end 
+
+    -- 2. Apply Z-Offset Push along the Normal Vector
+    local t_off = TerminalCache.text_z_offset
+    local tdx = (sx + bnx * t_off) - Cam_X
+    local tdy = (sy + bny * t_off) - Cam_Y
+    local tdz = (sz + bnz * t_off) - Cam_Z
+    
     local depth = tdx*Cam_FWX + tdy*Cam_FWY + tdz*Cam_FWZ
     if depth < 5 or depth > 15000 then return end
     
     local f = Cam_FOV / depth
     local draw_scale = f / TerminalCache.opt_scale
-    
-    -- Project the physical board center onto the screen
     local renderX = HALF_W + (tdx*Cam_RTX + tdz*Cam_RTZ) * f
     local renderY = HALF_H + (tdx*Cam_UPX + tdy*Cam_UPY + tdz*Cam_UPZ) * f
     
-    -- Shift the vertical anchor cleanly to the top of the canvas
     renderY = renderY - ((TerminalCache.orig_h - TerminalCache.h) * 0.5) * draw_scale
     
-    BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, 1.0, 5)
+    -- 3. Smooth Fading
+    -- Bind it to the global SysText.Alpha so it gracefully fades alongside the main slide text
+    local alpha_close = math.max(0, math.min(1, (depth-50)/100))
+    local final_alpha = alpha_close * SysText.Alpha
+    
+    if final_alpha <= 0.01 then return end
+    
+    BlitUI_3D(TerminalCache, renderX, renderY, depth, draw_scale, final_alpha, 5)
 end
-
 function Renderer.DrawFrame()
     if not snapshotBaked then
         Render3DScene()
