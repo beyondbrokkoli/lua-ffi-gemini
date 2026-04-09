@@ -110,45 +110,26 @@ function SysText.BakeTerminal()
     local canvas = love.graphics.newCanvas(w, h)
     
     love.graphics.setCanvas(canvas)
-    love.graphics.clear(0, 0.05, 0, 0.6) -- Translucent dark green glass
+    love.graphics.clear(0, 0, 0, 0) -- Fully transparent
     
-    -- Ensure Font_Terminal exists (defined in main.lua load)
     local font = Font_Terminal or love.graphics.newFont(16)
     love.graphics.setFont(font)
+    
+    -- Draw in WHITE so your original BlitUI_3D stamps it in BLACK
+    love.graphics.setColor(1, 1, 1, 1) 
 
-    local padding = 20
+    local padding = 40
     local wrapLimit = w - (padding * 2)
-    local curY = 20
-    local defaultColor = {0, 0.8, 0, 1}
+    local curY = 40
 
     for _, line in ipairs(HUD.lines) do
-        -- 1. Parse the ANSI line into a Love2D ColoredText Table
-        local coloredText = {}
-        local lastPos = 1
-        local currentColor = defaultColor
+        -- Strip ANSI codes for the clean, unified slide look
+        local cleanLine = line:gsub("\27%[[%d;]*m", "")
         
-        for code, text, pos in line:gmatch("\27%[([%d;]*)m([^\27]*)()") do
-            if ansi_to_love[code] then currentColor = {ansi_to_love[code][1], ansi_to_love[code][2], ansi_to_love[code][3], 1} end
-            if text and #text > 0 then
-                table.insert(coloredText, currentColor)
-                table.insert(coloredText, text)
-            end
-            lastPos = pos
-        end
+        -- Let Love2D handle the word wrapping natively
+        local width, wrappedLines = font:getWrap(cleanLine, wrapLimit)
+        love.graphics.printf(cleanLine, padding, curY, wrapLimit, "left")
         
-        -- If no ANSI codes were found, just use the raw line
-        if lastPos == 1 then
-            coloredText = {defaultColor, line}
-        end
-
-        -- 2. Wrap and Render
-        -- Check how many vertical lines this paragraph will take up
-        local width, wrappedLines = font:getWrap(coloredText, wrapLimit)
-        
-        -- Print the wrapped, syntax-highlighted text block
-        love.graphics.printf(coloredText, padding, curY, wrapLimit, "left")
-        
-        -- 3. Push the Y coordinate down for the next line in the HUD
         curY = curY + (#wrappedLines * font:getHeight()) + 5
     end
 
@@ -159,7 +140,7 @@ function SysText.BakeTerminal()
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = w, h = h,
         _keepAlive = imgData,
-        opt_scale = (Cam_FOV / HUD_DIST), -- Using your physical HUD distance!
+        opt_scale = (Cam_FOV / HUD_DIST), 
         orig_h = h
     }
     canvas:release()

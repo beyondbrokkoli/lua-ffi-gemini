@@ -131,7 +131,9 @@ function love.load()
         Renderer.BakeStaticLighting()
         -- In main.lua -> love.load()
         -- After creating the main slides...
-
+        -- COFFEE PALETTE
+        local C_CREAM = 4294306522 -- 0xFFF5EADA
+        local C_LATTE = 4292131280 -- 0xFFEAE0D0
         HUD_DIST = 500
         -- Use C_CREAM (or C_LATTE) instead of dark gray!
         HUD_Mesh_ID = Factory.CreateSlideMesh(0, 0, 0, 800, 600, 10, C_CREAM)

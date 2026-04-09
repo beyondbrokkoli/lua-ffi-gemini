@@ -261,8 +261,9 @@ local function Render3DScene()
             DrawProp(Pool_Solid[i], cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
         end
     end
-    -- Add this at the very end of Render3DScene()
+    -- In sys_renderer.lua -> Render3DScene()
     if HUD.open then
+        -- Draw the Cream board right in front of the camera
         DrawSlide(HUD_Mesh_ID, cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z)
     end
 end
