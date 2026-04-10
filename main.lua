@@ -151,6 +151,11 @@ function love.load()
         end
     end
     BGB = require("bgb") -- i will do it here
+    -- NEW: Build a sorted index of the BGB database for Left/Right cycling
+    BGB_Keys = {};
+    for k in pairs(BGB) do table.insert(BGB_Keys, k) end;
+    table.sort(BGB_Keys, function(a, b) return a < b end);
+    CurrentBGBIndex = 1; -- Start at the first paragraph
 end
 local function ExecuteSlideTransition()
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
@@ -175,25 +180,150 @@ local function ExecuteSlideTransition()
         TriggerContinuousFlight()
     end
 end
-
 function love.keypressed(key)
     if EngineState == STATE_FREEFLY and (key == "p" or key == "space") then
         lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
         TargetState = STATE_PRESENT
         TriggerContinuousFlight()
     elseif EngineState ~= STATE_FREEFLY and (key == "left" or key == "right" or key == "up" or key == "down") then
-        local COLS = 16; local row = math.floor(TargetSlide / COLS); local col = TargetSlide % COLS; local row_start = row * COLS; local oldTarget = TargetSlide
-        if key == "right" then
-            if col + 1 < COLS then TargetSlide = math.min(row_start + col + 1, NumSlides - 1) else TargetSlide = row_start end
-        elseif key == "left" then
-            if col - 1 >= 0 then TargetSlide = math.min(row_start + col - 1, NumSlides - 1) else TargetSlide = math.min(row_start + COLS - 1, NumSlides - 1) end
-        elseif key == "up" then
-            if TargetSlide - COLS >= 0 then TargetSlide = TargetSlide - COLS end
-        elseif key == "down" then
-            if TargetSlide + COLS < NumSlides then TargetSlide = TargetSlide + COLS end
+
+        -- THE HUD INTERCEPTOR
+        if HUD.open then
+            if key == "up" or key == "down" then
+                -- Vertical Scroll
+                local dir = (key == "up") and -1 or 1
+                HUD.scroll = math.max(0, (HUD.scroll or 0) + (dir * 150))
+                SysText.BakeTerminal()
+                snapshotBaked = false
+
+            elseif key == "left" or key == "right" then
+                -- Horizontal Database Cycling!
+                if #BGB_Keys > 0 then
+                    local dir = (key == "left") and -1 or 1
+                    CurrentBGBIndex = math.max(1, math.min(#BGB_Keys, CurrentBGBIndex + dir))
+                    local target = BGB_Keys[CurrentBGBIndex]
+
+                    HUD.scroll = 0; -- Reset scroll for the new text
+                    HUD.lines = { c_cyan .. "> BGB SEARCH: § " .. target .. c_reset, BGB[target].title, "---", BGB[target].text }
+                    SysText.BakeTerminal()
+                    snapshotBaked = false
+                end
+            end
+
+        else
+            -- STANDARD SLIDE NAVIGATION (Only runs if HUD is closed)
+            local COLS = 16
+            local row = math.floor(TargetSlide / COLS)
+            local col = TargetSlide % COLS
+            local row_start = row * COLS
+            local oldTarget = TargetSlide
+            if key == "right" then
+                if col + 1 < COLS then TargetSlide = math.min(row_start + col + 1, NumSlides - 1) else TargetSlide = row_start end
+            elseif key == "left" then
+                if col - 1 >= 0 then TargetSlide = math.min(row_start + col - 1, NumSlides - 1) else TargetSlide = math.min(row_start + COLS - 1, NumSlides - 1) end
+            elseif key == "up" then
+                if TargetSlide - COLS >= 0 then TargetSlide = TargetSlide - COLS end
+            elseif key == "down" then
+                if TargetSlide + COLS < NumSlides then TargetSlide = TargetSlide + COLS end
+            end
+            if TargetSlide ~= oldTarget then
+                ExecuteSlideTransition()
+            end
         end
-        if TargetSlide ~= oldTarget then
+
+    elseif key == "i" or key == "u" then
+        EngineState = STATE_FREEFLY; TargetState = STATE_FREEFLY
+        if key == "u" then Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch end
+
+    elseif EngineState ~= STATE_FREEFLY and (key == "space" or key == "backspace") then
+        if key == "space" and TargetState == STATE_OVERVIEW then
+            TargetState = STATE_PRESENT; TriggerContinuousFlight()
+        else
+            TargetSlide = (key == "space") and ((TargetSlide + 1) % NumSlides) or ((TargetSlide - 1 + NumSlides) % NumSlides)
             ExecuteSlideTransition()
+        end
+
+    elseif key == "j" and EngineState == STATE_FREEFLY then
+        isMouseCaptured = not isMouseCaptured
+        love.mouse.setRelativeMode(isMouseCaptured)
+    elseif key == "c" then Physics.TriggerChaosField()
+    elseif key == "v" then Physics.TriggerVortex()
+    elseif key == "g" then Physics.TriggerGravity()
+
+    -- OVERVIEW REPLACED WITH TERMINAL TOGGLE
+    elseif key == "tab" then
+        HUD.open = not HUD.open
+        if HUD.open then HUD.scroll = 0 end
+        ExecuteSlideTransition()
+
+    elseif key == "z" then
+        if EngineState == STATE_FREEFLY then return end
+        if EngineState == STATE_PRESENT or EngineState == STATE_OVERVIEW then TargetState = STATE_ZEN; else TargetState = STATE_PRESENT end
+        TriggerContinuousFlight()
+    elseif key == "+" or key == "kp+" then
+        SlideExposure = math.min(3.0, SlideExposure + 0.1); snapshotBaked = false
+    elseif key == "-" or key == "kp-" then
+        SlideExposure = math.max(0.1, SlideExposure - 0.1); snapshotBaked = false
+    elseif key == "escape" then love.event.quit() end
+
+    if key:match("^[1-9]$") then
+        local para_map = {["1"]="611", ["2"]="611a", ["3"]="620", ["4"]="622", ["5"]="623", ["6"]="626"}
+        local target = para_map[key]
+        if target and BGB[target] then
+
+            -- Sync the Left/Right cycling index with the shortcut key pressed
+            if BGB_Keys then
+                for i, k in ipairs(BGB_Keys) do
+                    if k == target then CurrentBGBIndex = i; break; end
+                end
+            end
+
+            HUD.open = true
+            HUD.scroll = 0
+            HUD.lines = { c_cyan .. "> BGB SEARCH: § " .. target .. c_reset, BGB[target].title, "---", BGB[target].text }
+            ExecuteSlideTransition()
+        end
+    end
+end
+function OLD_love_keypressed(key)
+    if EngineState == STATE_FREEFLY and (key == "p" or key == "space") then
+        lastFreeX, lastFreeY, lastFreeZ, lastFreeYaw, lastFreePitch = Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch
+        TargetState = STATE_PRESENT
+        TriggerContinuousFlight()
+
+
+
+    elseif EngineState ~= STATE_FREEFLY and (key == "left" or key == "right" or key == "up" or key == "down") then
+        if HUD.open then
+            -- Intercept arrow keys when HUD is open
+            if key == "up" or key == "down" then
+                local dir = (key == "up") and -1 or 1
+                HUD.scroll = math.max(0, (HUD.scroll or 0) + (dir * 150))
+                SysText.BakeTerminal()
+                snapshotBaked = false
+            end
+            -- Left/Right do nothing here, safely preventing accidental slide switching!
+        else
+            -- Standard Presentation Mode Navigation
+            local COLS = 16
+            local row = math.floor(TargetSlide / COLS)
+            local col = TargetSlide % COLS
+            local row_start = row * COLS
+            local oldTarget = TargetSlide
+
+            if key == "right" then
+                if col + 1 < COLS then TargetSlide = math.min(row_start + col + 1, NumSlides - 1) else TargetSlide = row_start end
+            elseif key == "left" then
+                if col - 1 >= 0 then TargetSlide = math.min(row_start + col - 1, NumSlides - 1) else TargetSlide = math.min(row_start + COLS - 1, NumSlides - 1) end
+            elseif key == "up" then
+                if TargetSlide - COLS >= 0 then TargetSlide = TargetSlide - COLS end
+            elseif key == "down" then
+                if TargetSlide + COLS < NumSlides then TargetSlide = TargetSlide + COLS end
+            end
+
+            if TargetSlide ~= oldTarget then
+                ExecuteSlideTransition()
+            end
         end
     elseif key == "i" or key == "u" then
         EngineState = STATE_FREEFLY; TargetState = STATE_FREEFLY
@@ -234,21 +364,20 @@ function love.keypressed(key)
         SlideExposure = math.max(0.1, SlideExposure - 0.1)
         snapshotBaked = false -- Forces the Zen mode to re-render the frame!
     elseif key == "escape" then love.event.quit() end
-
     if key:match("^[1-9]$") then
         local para_map = {["1"]="611", ["2"]="611a", ["3"]="620", ["4"]="622", ["5"]="623", ["6"]="626"}
         local target = para_map[key]
         if target and BGB[target] then
             HUD.open = true
+            HUD.scroll = 0 -- Zero out the scroll on fresh search
             HUD.lines = { c_cyan .. "> BGB SEARCH: § " .. target .. c_reset, BGB[target].title, "---", BGB[target].text }
-            -- Execute transition to fly/warp to the terminal!
-            ExecuteSlideTransition() 
+            ExecuteSlideTransition()
         end
     end
 
     if key == "t" then
         HUD.open = not HUD.open
-        -- Execute transition to fly to terminal (or fly back to active slide if closing!)
+        if HUD.open then HUD.scroll = 0 end -- Zero out the scroll on toggle
         ExecuteSlideTransition()
     end
 end
@@ -370,5 +499,13 @@ function love.mousemoved(x, y, dx, dy)
         local sensitivity = 0.002
         Cam_Yaw = Cam_Yaw + (dx * sensitivity)
         Cam_Pitch = Cam_Pitch + (dy * sensitivity)
+    end
+end
+function love.wheelmoved(x, y)
+    if HUD.open then
+        -- Multiplier of 100 makes it feel responsive
+        HUD.scroll = math.max(0, (HUD.scroll or 0) - (y * 100))
+        SysText.BakeTerminal()
+        snapshotBaked = false
     end
 end
