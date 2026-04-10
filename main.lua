@@ -262,6 +262,7 @@ function love.update(dt)
                 Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
             end
             SysText.InitSlideTextCache()
+            SysText.BakeTerminal()
             pendingResize = false
         end
         return
