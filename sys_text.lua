@@ -109,6 +109,182 @@ end
 function SysText.BakeTerminal()
     local w = TERMINAL_W or 1600
     local h = TERMINAL_H or 900
+
+    local distScale = max(h, w * (CANVAS_H / CANVAS_W))
+    -- UI LOCK: Mirror the exact camera math (Pad=0)
+    local optDist = (distScale * Cam_FOV) / CANVAS_H * (PRESENTATION_ZOOM or 1.0)
+    
+    -- SCALE SYNC: Hover exactly 25 units from center (matches Slide Template)
+    local hover_dist = 25 
+    local text_depth = optDist - hover_dist
+    local optimal_scale = (Cam_FOV / text_depth)
+
+    local fonts = {
+        title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))),
+        head  = love.graphics.newFont(max(8, floor((h * 0.08) * optimal_scale))),
+        body  = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
+    }
+
+    local virtW, virtH = max(1, floor(w * optimal_scale)), max(1, floor(h * optimal_scale))
+    
+    -- STEP 1: GIANT BUFFER (The Golden Template approach)
+    local giantCanvas = love.graphics.newCanvas(virtW, virtH)
+    love.graphics.setCanvas(giantCanvas)
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setColor(1, 1, 1, 1)
+
+    -- CRITICAL: floor the Y coordinate to prevent sub-pixel font jitter
+    local currentY = floor(virtH * 0.05 - (HUD.scroll or 0))
+    local paddingX = floor(virtW * 0.05)
+    local maxTextWidth = virtW - (paddingX * 2)
+
+    local ANSI_PATTERN = string.char(27) .. "%[[%d;]*m"
+
+    -- UNIFIED PIPELINE: Route every line through the golden ParseSlideLine
+    for i = 1, #HUD.lines do
+        local s = HUD.lines[i]:gsub(ANSI_PATTERN, "")
+        if s ~= "" then
+            local columns = ParseSlideLine(s, fonts)
+            local numCols = #columns
+            local colWidth = floor(maxTextWidth / numCols)
+            local maxRowHeight = 0
+            
+            for colIdx, colData in ipairs(columns) do
+                love.graphics.setFont(colData.font)
+                local xOffset = paddingX + ((colIdx - 1) * colWidth)
+                local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0)
+                local _, wrappedLines = colData.font:getWrap(colData.text, colPrintWidth)
+                local lineY = currentY
+                local colHeight = 0
+                
+                for lIdx, lineStr in ipairs(wrappedLines) do
+                    -- Align to whole pixels to keep text sharp
+                    love.graphics.printf(lineStr, floor(xOffset), floor(lineY), colPrintWidth, colData.align)
+                    lineY = lineY + colData.font:getHeight()
+                    colHeight = colHeight + colData.font:getHeight()
+                end
+                if colHeight > maxRowHeight then maxRowHeight = colHeight end
+            end
+            currentY = currentY + maxRowHeight + floor(virtH * 0.005)
+        else
+            currentY = currentY + fonts.body:getHeight()
+        end
+    end
+
+    -- STEP 2: THE MAGIC REPLACE STAMP (Preserves anti-aliasing edge pixels)
+    local finalCanvas = love.graphics.newCanvas(virtW, virtH)
+    love.graphics.setCanvas(finalCanvas)
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setBlendMode("replace")
+    love.graphics.draw(giantCanvas, 0, 0)
+    love.graphics.setBlendMode("alpha")
+    love.graphics.setCanvas()
+
+    if TerminalCache and TerminalCache._keepAlive then
+        TerminalCache._keepAlive:release()
+    end
+
+    local imgData = finalCanvas:newImageData()
+    TerminalCache = {
+        ptr = ffi.cast("uint32_t*", imgData:getPointer()),
+        w = virtW, h = virtH,
+        _keepAlive = imgData,
+        text_z_offset = hover_dist,
+        opt_scale = optimal_scale,
+        orig_h = virtH
+    }
+    
+    giantCanvas:release(); finalCanvas:release()
+end
+function SysText.ALMOST_THERE_BakeTerminal()
+    local w = TERMINAL_W or 1600
+    local h = TERMINAL_H or 900
+
+    local distScale = max(h, w * (CANVAS_H / CANVAS_W))
+    -- Force PAD to 0 for Terminal to lock 1:1 scale
+    local optDist = (distScale * Cam_FOV) / CANVAS_H * (PRESENTATION_ZOOM or 1.0)
+    
+    local hover_dist = 25 
+    local text_depth = optDist - hover_dist
+    local optimal_scale = (Cam_FOV / text_depth)
+
+    local fonts = {
+        title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))),
+        head  = love.graphics.newFont(max(8, floor((h * 0.08) * optimal_scale))),
+        body  = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
+    }
+
+    local virtW, virtH = max(1, floor(w * optimal_scale)), max(1, floor(h * optimal_scale))
+    
+    -- UNIFIED PIPELINE: Use the same Giant Canvas approach as BakeSlideText
+    local giantCanvas = love.graphics.newCanvas(virtW, virtH)
+    love.graphics.setCanvas(giantCanvas)
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setColor(1, 1, 1, 1)
+
+    -- CRITICAL: floor the Y to prevent sub-pixel font jitter
+    local currentY = floor(virtH * 0.05 - (HUD.scroll or 0))
+    local paddingX = floor(virtW * 0.05)
+    local maxTextWidth = virtW - (paddingX * 2)
+
+    local ANSI_PATTERN = string.char(27) .. "%[[%d;]*m"
+
+    -- Treat ALL lines identically through the parser
+    for i = 1, #HUD.lines do
+        local s = HUD.lines[i]:gsub(ANSI_PATTERN, "")
+        if s ~= "" then
+            local columns = ParseSlideLine(s, fonts)
+            local numCols = #columns
+            local colWidth = floor(maxTextWidth / numCols)
+            local maxRowHeight = 0
+            
+            for colIdx, colData in ipairs(columns) do
+                love.graphics.setFont(colData.font)
+                local xOffset = paddingX + ((colIdx - 1) * colWidth)
+                local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0)
+                local _, wrappedLines = colData.font:getWrap(colData.text, colPrintWidth)
+                local lineY = currentY
+                local colHeight = 0
+                
+                for lIdx, lineStr in ipairs(wrappedLines) do
+                    -- Align to whole pixels
+                    love.graphics.printf(lineStr, floor(xOffset), floor(lineY), colPrintWidth, colData.align)
+                    lineY = lineY + colData.font:getHeight()
+                    colHeight = colHeight + colData.font:getHeight()
+                end
+                if colHeight > maxRowHeight then maxRowHeight = colHeight end
+            end
+            currentY = currentY + maxRowHeight + floor(virtH * 0.005)
+        else
+            currentY = currentY + fonts.body:getHeight()
+        end
+    end
+
+    -- THE FINAL STAMP: Use "replace" blend mode to preserve anti-aliasing
+    local finalCanvas = love.graphics.newCanvas(virtW, virtH)
+    love.graphics.setCanvas(finalCanvas)
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.setBlendMode("replace")
+    love.graphics.draw(giantCanvas, 0, 0)
+    love.graphics.setBlendMode("alpha")
+    love.graphics.setCanvas()
+
+    if TerminalCache and TerminalCache._keepAlive then TerminalCache._keepAlive:release() end
+
+    local imgData = finalCanvas:newImageData()
+    TerminalCache = {
+        ptr = ffi.cast("uint32_t*", imgData:getPointer()),
+        w = virtW, h = virtH,
+        _keepAlive = imgData,
+        text_z_offset = hover_dist,
+        opt_scale = optimal_scale,
+        orig_h = virtH
+    }
+    giantCanvas:release(); finalCanvas:release()
+end
+function SysText.OLD_BakeTerminal()
+    local w = TERMINAL_W or 1600
+    local h = TERMINAL_H or 900
     
     local distScale = max(h, w * (CANVAS_H / CANVAS_W))
     local pad = 200
