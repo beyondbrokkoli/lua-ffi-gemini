@@ -21,7 +21,64 @@ TERMINAL_H = 900
 TERMINAL_THICKNESS = 40
 
 PRESENTATION_ZOOM = 1.0
+local function DiagnoseBGBGaps(bgbData)
+    print("\n[AUDIT-INFO]: --- BGB GAP DIAGNOSTIC START ---")
+    local max_num = 0
+    local num_map = {}
 
+    -- 1. Map all keys and find the absolute highest base paragraph number
+    for k, _ in pairs(bgbData) do
+        -- Extract just the digits (e.g., "611a" becomes 611)
+        local baseNum = tonumber(k:match("^%d+"))
+        if baseNum then
+            num_map[baseNum] = true
+            if baseNum > max_num then
+                max_num = baseNum
+            end
+        end
+    end
+
+    print(string.format("[AUDIT-INFO]: Scanned %d unique keys. Highest paragraph found: § %d", #BGB_Keys, max_num))
+
+    -- 2. Walk from 1 to max_num and group the missing ones
+    local missing_ranges = {}
+    local current_start = nil
+
+    for i = 1, max_num do
+        if not num_map[i] then
+            if not current_start then
+                current_start = i -- Start a new missing gap
+            end
+        else
+            if current_start then
+                -- Gap ended! Record it.
+                if current_start == (i - 1) then
+                    table.insert(missing_ranges, tostring(current_start))
+                else
+                    table.insert(missing_ranges, current_start .. "-" .. (i - 1))
+                end
+                current_start = nil
+            end
+        end
+    end
+
+    -- Catch any gap that goes all the way to the end
+    if current_start then
+        if current_start == max_num then
+            table.insert(missing_ranges, tostring(current_start))
+        else
+            table.insert(missing_ranges, current_start .. "-" .. max_num)
+        end
+    end
+
+    print("[AUDIT-INFO]: Missing Base Paragraphs:")
+    -- Word-wrap the output so it doesn't break the console
+    local outStr = table.concat(missing_ranges, ", ")
+    for line in outStr:gmatch(".{1,80}") do
+        print("  " .. line)
+    end
+    print("[AUDIT-INFO]: --- BGB GAP DIAGNOSTIC END ---\n")
+end
 local function lerp(a, b, t) return a + (b - a) * t end
 local function lerpAngle(a, b, t)
     local diff = (b - a + pi) % (pi * 2) - pi
@@ -150,12 +207,26 @@ function love.load()
             Tri_BaseLight[tStart + t] = 0.36
         end
     end
-    BGB = require("bgb") -- i will do it here
-    -- NEW: Build a sorted index of the BGB database for Left/Right cycling
-    BGB_Keys = {};
-    for k in pairs(BGB) do table.insert(BGB_Keys, k) end;
-    table.sort(BGB_Keys, function(a, b) return a < b end);
-    CurrentBGBIndex = 1; -- Start at the first paragraph
+    BGB = require("bgb")
+    BGB_Keys = {}
+    for k in pairs(BGB) do table.insert(BGB_Keys, k) end
+
+    -- THE SMART SORT: Numerically first, Alphabetically second
+    table.sort(BGB_Keys, function(a, b)
+        -- Extract the core numbers (e.g., "611" from "611a")
+        local numA = tonumber(a:match("%d+")) or 0
+        local numB = tonumber(b:match("%d+")) or 0
+
+        -- If the numbers match (like 611 and 611a), sort alphabetically
+        if numA == numB then
+            return a < b
+        end
+        -- Otherwise, strictly sort by number!
+        return numA < numB
+    end)
+    CurrentBGBIndex = 1
+    -- RUN THE DIAGNOSTIC
+    DiagnoseBGBGaps(BGB)
 end
 local function ExecuteSlideTransition()
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
