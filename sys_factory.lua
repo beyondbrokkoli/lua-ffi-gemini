@@ -215,6 +215,54 @@ function Factory.CreateTorus(cx, cy, cz, mainRadius, tubeRadius, segments, sides
     end
     return id
 end
+function Factory.CreateTerminalSlide(x, y, z, w, h, thickness, color)
+    local maxDiagonal = sqrt((w/2)^2 + (h/2)^2 + (thickness/2)^2)
 
+    -- 1. Grab an ID and increment the global counter (Bypass CreateTriObject!)
+    local id = NumObjects
+    NumObjects = NumObjects + 1
+
+    -- 2. Allocate the transform memory
+    Obj_X[id], Obj_Y[id], Obj_Z[id] = x, y, z
+    Obj_Yaw[id], Obj_Pitch[id] = 0, 0
+    Obj_Radius[id] = maxDiagonal
+    Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id] = 0, 0, 1
+    Obj_RTX[id], Obj_RTY[id], Obj_RTZ[id] = 1, 0, 0
+    Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id] = 0, 1, 0
+
+    -- 3. Reserve Vertices and Triangles
+    Obj_VertStart[id] = NumTotalVerts
+    Obj_VertCount[id] = 8
+    Obj_TriStart[id] = NumTotalTris
+    Obj_TriCount[id] = 12
+
+    NumTotalVerts = NumTotalVerts + 8
+    NumTotalTris = NumTotalTris + 12
+
+    local vStart, tStart = Obj_VertStart[id], Obj_TriStart[id]
+    local hw, hh, ht = w/2, h/2, thickness/2
+
+    -- 4. Build the Geometry
+    local verts = {
+        {-hw, -hh, -ht}, {hw, -hh, -ht}, {hw, hh, -ht}, {-hw, hh, -ht},
+        {-hw, -hh, ht}, {hw, -hh, ht}, {hw, hh, ht}, {-hw, hh, ht}
+    }
+    for i, v in ipairs(verts) do
+        local vIdx = vStart + (i - 1)
+        Vert_LX[vIdx], Vert_LY[vIdx], Vert_LZ[vIdx] = v[1], v[2], v[3]
+    end
+
+    local indices = {
+        0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4,
+        1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7
+    }
+    for i = 1, #indices, 3 do
+        local tIdx = tStart + math.floor((i-1)/3)
+        Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = indices[i] + vStart, indices[i+1] + vStart, indices[i+2] + vStart
+        Tri_Color[tIdx] = color
+    end
+
+    return id
+end
 return Factory
 

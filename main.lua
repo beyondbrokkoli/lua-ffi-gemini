@@ -142,7 +142,7 @@ function love.load()
         Renderer.BakeStaticLighting()
 
         -- Replace the HUD_Mesh_ID line with this:
-        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 8000, 0, TERMINAL_W, TERMINAL_H, TERMINAL_THICKNESS, C_LATTE)
+        HUD_Mesh_ID = Factory.CreateTerminalSlide(0, 8000, 0, TERMINAL_W, TERMINAL_H, TERMINAL_THICKNESS, C_LATTE)
         local tStart = Obj_TriStart[HUD_Mesh_ID]
         for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
             Tri_BaseLight[tStart + t] = 1.0
