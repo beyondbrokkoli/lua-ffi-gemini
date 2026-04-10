@@ -347,13 +347,13 @@ function love.draw()
         -- placeholder for effects
     -- end
 
-    -- love.graphics.setFont(Font_UI)
-    -- love.graphics.setColor(0, 1, 0.5, 1)
-    -- love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
+     love.graphics.setFont(Font_UI)
+     love.graphics.setColor(0, 1, 0.5, 1)
+     love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
 
     local modeText = "MODE: "
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then modeText = modeText .. "ZEN (CPU HIBERNATION)" else modeText = modeText .. "ACTIVE (PHYSICS ON)" end
-    -- love.graphics.print(modeText, 10, 30)
+     love.graphics.print(modeText, 10, 30)
 
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
         snapshotBaked = true

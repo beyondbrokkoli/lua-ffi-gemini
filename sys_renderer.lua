@@ -371,6 +371,8 @@ function Renderer.DrawFrame()
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
+    -- ADD THIS LINE TO PLUG THE LEAK:
+    love.graphics.setBlendMode("alpha")
 end
 
 return Renderer

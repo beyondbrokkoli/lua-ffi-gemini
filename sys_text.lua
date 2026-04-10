@@ -9,8 +9,78 @@ local ansi_to_love = {
     ["36"] = {0.2, 1, 1},   -- Cyan
     ["0"]  = {0, 0.8, 0},   -- Reset
 }
-
 local function ParseSlideLine(rawText, fonts)
+    if not rawText then return {} end -- Safety net
+    
+    local pipePos = rawText:find("|")
+    if pipePos then
+        local leftStr = rawText:sub(1, pipePos - 1):match("^%s*(.-)%s*$")
+        local rightStr = rawText:sub(pipePos + 1):match("^%s*(.-)%s*$")
+        local columns = ParseSlideLine(leftStr, fonts)
+        local rightCols = ParseSlideLine(rightStr, fonts)
+        for _, col in ipairs(rightCols) do table.insert(columns, col) end
+        return columns
+    end
+
+    local cleanText = rawText
+    local currentFont = fonts.body
+    local currentAlign = "left"
+
+    if cleanText:match("^~%s+") then
+        cleanText = cleanText:gsub("^~%s+", "")
+        currentAlign = "center"
+    end
+    if cleanText:match("^#%s+") then
+        cleanText = cleanText:gsub("^#%s+", "")
+        currentFont = fonts.head
+    end
+
+    -- NATIVE ANSI PARSING
+    local coloredTable = {}
+    local pureText = ""
+    local currentColor = {1, 1, 1, 1}
+    local lastPos = 1
+
+    -- Scan for ANSI codes and build the LÖVE color table
+    for startPos, colorCode, endPos in cleanText:gmatch("()\27%[([%d;]*)m()") do
+        if startPos > lastPos then
+            local chunk = cleanText:sub(lastPos, startPos - 1)
+            table.insert(coloredTable, currentColor)
+            table.insert(coloredTable, chunk)
+            pureText = pureText .. chunk
+        end
+        
+        if colorCode == "0" or colorCode == "" then
+            currentColor = {1, 1, 1, 1}
+        elseif ansi_to_love[colorCode] then
+            currentColor = {ansi_to_love[colorCode][1], ansi_to_love[colorCode][2], ansi_to_love[colorCode][3], 1}
+        end
+        lastPos = endPos
+    end
+
+    -- Catch any remaining text after the last ANSI code
+    if lastPos <= #cleanText then
+        local chunk = cleanText:sub(lastPos)
+        table.insert(coloredTable, currentColor)
+        table.insert(coloredTable, chunk)
+        pureText = pureText .. chunk
+    end
+
+    -- Fallback if no colors were found
+    if #coloredTable == 0 then
+        coloredTable = { {1, 1, 1, 1}, cleanText }
+        pureText = cleanText
+    end
+
+    return { { 
+        text = cleanText, 
+        pureText = pureText,          -- Used purely for height measurement
+        coloredTable = coloredTable,  -- Used for actual rendering
+        font = currentFont, 
+        align = currentAlign 
+    } }
+end
+local function OLD_ParseSlideLine(rawText, fonts)
     local pipePos = rawText:find("|")
     if pipePos then
         local leftStr = rawText:sub(1, pipePos - 1):match("^%s*(.-)%s*$")
@@ -113,7 +183,6 @@ function SysText.BakeTerminal()
     local w = TERMINAL_W or 1600
     local h = TERMINAL_H or 900
     
-    -- 1. Standardize Distance/Scale Calculation
     local distScale = max(h, w * (CANVAS_H / CANVAS_W))
     local zoom = PRESENTATION_ZOOM or 1.0
     local optDist = (distScale * Cam_FOV) / CANVAS_H * zoom
@@ -122,7 +191,6 @@ function SysText.BakeTerminal()
     local text_depth = optDist - hover_dist
     local optimal_scale = (Cam_FOV / text_depth)
 
-    -- 2. Standardized Font Generation
     local fonts = {
         title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))),
         head = love.graphics.newFont(max(8, floor((h * 0.08) * optimal_scale))),
@@ -137,17 +205,14 @@ function SysText.BakeTerminal()
     love.graphics.clear(0, 0, 0, 0)
     love.graphics.setColor(1, 1, 1, 1)
 
-    -- 3. Standardized Layout & Wrap Pipeline
     local currentY = floor(virtH * 0.05 - (HUD.scroll or 0))
     local paddingX = floor(virtW * 0.05)
     local maxTextWidth = virtW - (paddingX * 2)
 
     for _, s in ipairs(HUD.lines) do
-        -- Strip ANSI codes for the bake to prevent length math errors
-        local cleanLine = s:gsub("\27%[[%d;]*m", "")
-        
-        if cleanLine ~= "" then
-            local columns = ParseSlideLine(cleanLine, fonts)
+        if s and s ~= "" then
+            -- NO MORE GSUB HACKS. Pass the raw string to the parser.
+            local columns = ParseSlideLine(s, fonts)
             local numCols = #columns
             local colWidth = floor(maxTextWidth / numCols)
             local maxRowHeight = 0
@@ -155,21 +220,15 @@ function SysText.BakeTerminal()
             for colIdx, colData in ipairs(columns) do
                 love.graphics.setFont(colData.font)
                 local xOffset = paddingX + ((colIdx - 1) * colWidth)
-                
-                -- THE CRITICAL BUFFER (+4)
                 local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0) + 4
                 
-                local _, wrappedLines = colData.font:getWrap(colData.text, colPrintWidth)
-                local lineY = currentY
-                local colHeight = 0
-                
-                for _, lineStr in ipairs(wrappedLines) do
-                    -- THE CRITICAL FLOOR and OFFSET (-2)
-                    love.graphics.printf(lineStr, floor(xOffset - 2), floor(lineY), colPrintWidth, colData.align)
-                    lineY = lineY + colData.font:getHeight()
-                    colHeight = colHeight + colData.font:getHeight()
-                end
+                -- We use pureText strictly to measure the exact height it will take
+                local _, wrappedLines = colData.font:getWrap(colData.pureText, colPrintWidth)
+                local colHeight = #wrappedLines * colData.font:getHeight()
                 if colHeight > maxRowHeight then maxRowHeight = colHeight end
+                
+                -- Native LÖVE drawing handles the colored table AND wrapping seamlessly in one call!
+                love.graphics.printf(colData.coloredTable, floor(xOffset - 2), floor(currentY), colPrintWidth, colData.align)
             end
             currentY = currentY + maxRowHeight + floor(virtH * 0.005)
         else
@@ -177,23 +236,25 @@ function SysText.BakeTerminal()
         end
     end
 
-    -- 4. Standardized Cropping Logic
-    -- For the HUD, we keep the full virtH to match the Terminal Mesh aspect ratio
-    local finalCanvas = love.graphics.newCanvas(virtW, virtH)
-    love.graphics.setCanvas(finalCanvas)
+    -- EXACT MIRROR OF THE SLIDE CROP LOGIC
+    local finalH = min(virtH, currentY + floor(virtH * 0.05))
+    local croppedCanvas = love.graphics.newCanvas(virtW, finalH)
+    love.graphics.setCanvas(croppedCanvas)
     love.graphics.clear(0, 0, 0, 0)
     love.graphics.setBlendMode("replace")
+    love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(giantCanvas, 0, 0)
+    love.graphics.setBlendMode("alpha")
     love.graphics.setCanvas()
 
     if TerminalCache and TerminalCache._keepAlive then
         TerminalCache._keepAlive:release()
     end
 
-    local imgData = finalCanvas:newImageData()
+    local imgData = croppedCanvas:newImageData()
     TerminalCache = {
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
-        w = virtW, h = virtH,
+        w = virtW, h = finalH,
         _keepAlive = imgData,
         text_z_offset = hover_dist,
         opt_scale = optimal_scale,
@@ -201,9 +262,8 @@ function SysText.BakeTerminal()
     }
 
     giantCanvas:release()
-    finalCanvas:release()
+    croppedCanvas:release()
 end
-
 function SysText.InitSlideTextCache(textPayload) 
     if SlideTitles then
         for i, caches in pairs(SlideTitles) do
