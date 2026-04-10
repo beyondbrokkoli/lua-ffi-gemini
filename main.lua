@@ -16,6 +16,10 @@ isMouseCaptured = false
 snapshotBaked = false
 SlideExposure = 1.0
 
+TERMINAL_W = 1600
+TERMINAL_H = 900
+TERMINAL_THICKNESS = 40
+
 local PRESENTATION_ZOOM = 1.0
 
 local function lerp(a, b, t) return a + (b - a) * t end
@@ -55,7 +59,7 @@ local function updateTargetSide()
         local id = HUD_Mesh_ID
         sx, sy, sz = Obj_X[id], Obj_Y[id], Obj_Z[id]
         nx, ny, nz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-        w, h = 1600, 900
+        w, h = TERMINAL_W, TERMINAL_H
     else
         -- Target the normal slide carousel
         local id = TargetSlide
@@ -137,9 +141,8 @@ function love.load()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()
 
-        HUD_DIST = 500
         -- Replace the HUD_Mesh_ID line with this:
-        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 8000, 0, 1600, 900, 10, C_LATTE)
+        HUD_Mesh_ID = Factory.CreateSlideMesh(0, 8000, 0, TERMINAL_W, TERMINAL_H, TERMINAL_THICKNESS, C_LATTE)
         local tStart = Obj_TriStart[HUD_Mesh_ID]
         for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
             Tri_BaseLight[tStart + t] = 1.0

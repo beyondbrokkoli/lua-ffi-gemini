@@ -106,8 +106,8 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
     return cache
 end
 function SysText.BakeTerminal()
-    local w = 1600
-    local h = 900
+    local w = TERMINAL_W or 1600
+    local h = TERMINAL_H or 900
 
     local distScale = max(h, w * (CANVAS_H / CANVAS_W))
     local pad = 200
@@ -119,7 +119,8 @@ function SysText.BakeTerminal()
 
     local activeZoom = PRESENTATION_ZOOM or 1.0
     local optDist = (distScale * Cam_FOV) / CANVAS_H * activeZoom + pad
-    local text_depth = optDist - 10
+    -- Offset is exactly 10 to match the physical thickness of the HUD_Mesh_ID. Prevents z-fighting and preserves 1:1 scale.
+    local text_depth = optDist - TERMINAL_THICKNESS
     local optimal_scale = (Cam_FOV / text_depth)
 
     -- INHERIT THE GOLDEN FONTS
@@ -178,7 +179,7 @@ function SysText.BakeTerminal()
         ptr = ffi.cast("uint32_t*", imgData:getPointer()),
         w = virtW, h = finalH,
         _keepAlive = imgData,
-        text_z_offset = 10,
+        text_z_offset = TERMINAL_THICKNESS,
         opt_scale = optimal_scale,
         orig_h = virtH -- CRITICAL: Pass the original uncropped height to match RenderText!
     }
