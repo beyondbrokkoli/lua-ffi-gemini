@@ -157,11 +157,11 @@ end
 function SysText.BakeTerminal()
     local w = TERMINAL_W or 1600
     local h = TERMINAL_H or 900
-    
+
     local distScale = max(h, w * (CANVAS_H / CANVAS_W))
     local zoom = PRESENTATION_ZOOM or 1.0
     local optDist = (distScale * Cam_FOV) / CANVAS_H * zoom
-    
+
     local hover_dist = 25
     local text_depth = optDist - hover_dist
     local optimal_scale = (Cam_FOV / text_depth)
@@ -174,7 +174,7 @@ function SysText.BakeTerminal()
 
     local virtW = max(1, floor(w * optimal_scale))
     local virtH = max(1, floor(h * optimal_scale))
-    
+
     local giantCanvas = love.graphics.newCanvas(virtW, virtH)
     love.graphics.setCanvas(giantCanvas)
     love.graphics.clear(0, 0, 0, 0)
@@ -191,17 +191,17 @@ function SysText.BakeTerminal()
             local numCols = #columns
             local colWidth = floor(maxTextWidth / numCols)
             local maxRowHeight = 0
-            
+
             for colIdx, colData in ipairs(columns) do
                 love.graphics.setFont(colData.font)
                 local xOffset = paddingX + ((colIdx - 1) * colWidth)
                 local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0) + 4
-                
+
                 -- We use pureText strictly to measure the exact height it will take
                 local _, wrappedLines = colData.font:getWrap(colData.pureText, colPrintWidth)
                 local colHeight = #wrappedLines * colData.font:getHeight()
                 if colHeight > maxRowHeight then maxRowHeight = colHeight end
-                
+
                 -- Native LÖVE drawing handles the colored table AND wrapping seamlessly in one call!
                 love.graphics.printf(colData.coloredTable, floor(xOffset - 2), floor(currentY), colPrintWidth, colData.align)
             end
@@ -210,6 +210,10 @@ function SysText.BakeTerminal()
             currentY = currentY + fonts.body:getHeight()
         end
     end
+
+    -- THE FIX: Calculate the absolute text height and store the scroll limit
+    local absoluteBottom = currentY + (HUD.scroll or 0)
+    HUD.max_scroll = math.max(0, absoluteBottom - virtH + floor(virtH * 0.05))
 
     -- EXACT MIRROR OF THE SLIDE CROP LOGIC
     local finalH = min(virtH, currentY + floor(virtH * 0.05))

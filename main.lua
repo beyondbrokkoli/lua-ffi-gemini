@@ -193,6 +193,10 @@ function love.keypressed(key)
                 -- Vertical Scroll
                 local dir = (key == "up") and -1 or 1
                 HUD.scroll = math.max(0, (HUD.scroll or 0) + (dir * 150))
+                -- THE CLAMP: Stop scrolling past the calculated max
+                if HUD.max_scroll then
+                    HUD.scroll = math.min(HUD.scroll, HUD.max_scroll)
+                end
                 SysText.BakeTerminal()
                 snapshotBaked = false
 
@@ -503,8 +507,13 @@ function love.mousemoved(x, y, dx, dy)
 end
 function love.wheelmoved(x, y)
     if HUD.open then
-        -- Multiplier of 100 makes it feel responsive
         HUD.scroll = math.max(0, (HUD.scroll or 0) - (y * 100))
+
+        -- THE CLAMP: Prevent scrolling past the bottom with the mouse
+        if HUD.max_scroll then
+            HUD.scroll = math.min(HUD.scroll, HUD.max_scroll)
+        end
+
         SysText.BakeTerminal()
         snapshotBaked = false
     end
