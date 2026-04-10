@@ -133,7 +133,7 @@ HUD = {
     open = false,
     scroll = 0,
     -- Trigger Header (#) and Centering (~) to match the "Golden" search results
-    lines = {" # > BGB HUD INITIALIZED", " ~ > READY FOR QUERY"},
+    lines = {"BGB HUD INITIALIZED", "READY FOR QUERY"},
     mode = "LOOKUP"
 }
 HUD_DIST = nil

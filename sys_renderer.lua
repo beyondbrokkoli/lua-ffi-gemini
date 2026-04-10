@@ -352,9 +352,9 @@ local function RenderText()
     local draw_scale = current_perspective / cache.opt_scale
     -- THE SILVER BULLET: Absorb floating-point drift!
     -- If the scale is 99.9% perfect, lock it to exactly 1.0 to guarantee 1:1 pixel mapping.
-    if abs(draw_scale - 1.0) < 0.001 then
-        draw_scale = 1.0
-    end
+    -- if abs(draw_scale - 1.0) < 0.001 then
+        -- draw_scale = 1.0
+    -- end
     -- Anchors text cleanly to the top based on the crop height
     renderY = renderY - ((cache.orig_h - cache.h) * 0.5) * draw_scale
 

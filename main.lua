@@ -20,7 +20,7 @@ TERMINAL_W = 1600
 TERMINAL_H = 900
 TERMINAL_THICKNESS = 40
 
-local PRESENTATION_ZOOM = 1.0
+PRESENTATION_ZOOM = 1.0
 
 local function lerp(a, b, t) return a + (b - a) * t end
 local function lerpAngle(a, b, t)
@@ -137,9 +137,10 @@ function love.load()
 
         -- Pass the payload locally!
         SysText.InitSlideTextCache(sceneState.textPayload)
-        SysText.BakeTerminal()
+
         BuildCollisionPools()
         UpdateCameraBasis()
+        SysText.BakeTerminal()
         Renderer.BakeStaticLighting()
 
         -- Replace the HUD_Mesh_ID line with this:
