@@ -147,7 +147,7 @@ function love.load()
         HUD_Mesh_ID = Factory.CreateTerminalSlide(0, 8000, 0, TERMINAL_W, TERMINAL_H, TERMINAL_THICKNESS, C_LATTE)
         local tStart = Obj_TriStart[HUD_Mesh_ID]
         for t = 0, Obj_TriCount[HUD_Mesh_ID] - 1 do
-            Tri_BaseLight[tStart + t] = 1.0
+            Tri_BaseLight[tStart + t] = 0.36
         end
     end
     BGB = require("bgb") -- i will do it here
@@ -347,13 +347,13 @@ function love.draw()
         -- placeholder for effects
     -- end
 
-     love.graphics.setFont(Font_UI)
-     love.graphics.setColor(0, 1, 0.5, 1)
-     love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
+     -- love.graphics.setFont(Font_UI)
+     -- love.graphics.setColor(0, 1, 0.5, 1)
+     -- love.graphics.print("ULTIMA PLATIN | FPS: "..love.timer.getFPS(), 10, 10)
 
-    local modeText = "MODE: "
-    if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then modeText = modeText .. "ZEN (CPU HIBERNATION)" else modeText = modeText .. "ACTIVE (PHYSICS ON)" end
-     love.graphics.print(modeText, 10, 30)
+    -- local modeText = "MODE: "
+    -- if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then modeText = modeText .. "ZEN (CPU HIBERNATION)" else modeText = modeText .. "ACTIVE (PHYSICS ON)" end
+     -- love.graphics.print(modeText, 10, 30)
 
     if EngineState == STATE_ZEN or EngineState == STATE_HIBERNATED then
         snapshotBaked = true

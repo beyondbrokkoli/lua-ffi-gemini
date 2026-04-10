@@ -11,7 +11,7 @@ local ansi_to_love = {
 }
 local function ParseSlideLine(rawText, fonts)
     if not rawText then return {} end -- Safety net
-    
+
     local pipePos = rawText:find("|")
     if pipePos then
         local leftStr = rawText:sub(1, pipePos - 1):match("^%s*(.-)%s*$")
@@ -49,7 +49,7 @@ local function ParseSlideLine(rawText, fonts)
             table.insert(coloredTable, chunk)
             pureText = pureText .. chunk
         end
-        
+
         if colorCode == "0" or colorCode == "" then
             currentColor = {1, 1, 1, 1}
         elseif ansi_to_love[colorCode] then
@@ -79,29 +79,6 @@ local function ParseSlideLine(rawText, fonts)
         font = currentFont, 
         align = currentAlign 
     } }
-end
-local function OLD_ParseSlideLine(rawText, fonts)
-    local pipePos = rawText:find("|")
-    if pipePos then
-        local leftStr = rawText:sub(1, pipePos - 1):match("^%s*(.-)%s*$")
-        local rightStr = rawText:sub(pipePos + 1):match("^%s*(.-)%s*$")
-        local columns = ParseSlideLine(leftStr, fonts)
-        local rightCols = ParseSlideLine(rightStr, fonts)
-        for _, col in ipairs(rightCols) do table.insert(columns, col) end
-        return columns
-    end
-    local cleanText = rawText
-    local currentFont = fonts.body
-    local currentAlign = "left"
-    if cleanText:match("^~%s+") then
-        cleanText = cleanText:gsub("^~%s+", "")
-        currentAlign = "center"
-    end
-    if cleanText:match("^#%s+") then
-        cleanText = cleanText:gsub("^#%s+", "")
-        currentFont = fonts.head
-    end
-    return { { text = cleanText, font = currentFont, align = currentAlign } }
 end
 
 local function BakeSlideText(i, titleText, content, w, h, isZen)
@@ -134,22 +111,20 @@ local function BakeSlideText(i, titleText, content, w, h, isZen)
                 local numCols = #columns
                 local colWidth = floor(maxTextWidth / numCols)
                 local maxRowHeight = 0
+                
                 for colIdx, colData in ipairs(columns) do
                     love.graphics.setFont(colData.font)
                     local xOffset = paddingX + ((colIdx - 1) * colWidth)
-                    -- local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0)
-                    local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0) + 4;
-                    local _, wrappedLines = colData.font:getWrap(colData.text, colPrintWidth)
-                    local lineY = currentY
-                    local colHeight = 0
-                    for lIdx, lineStr in ipairs(wrappedLines) do
-                        -- love.graphics.printf(lineStr, xOffset, lineY, colPrintWidth, colData.align)
-                        -- Refined printf call with a tiny X-offset buffer
-                        love.graphics.printf(lineStr, floor(xOffset - 2), floor(lineY), colPrintWidth, colData.align);
-                        lineY = lineY + colData.font:getHeight()
-                        colHeight = colHeight + colData.font:getHeight()
-                    end
+                    local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0) + 4
+                    
+                    -- Use pureText strictly to measure the exact height it will take
+                    local _, wrappedLines = colData.font:getWrap(colData.pureText, colPrintWidth)
+                    local colHeight = #wrappedLines * colData.font:getHeight()
+                    
                     if colHeight > maxRowHeight then maxRowHeight = colHeight end
+                    
+                    -- Native LÖVE drawing handles the colored table AND wrapping seamlessly in one call!
+                    love.graphics.printf(colData.coloredTable, floor(xOffset - 2), floor(currentY), colPrintWidth, colData.align)
                 end
                 currentY = currentY + maxRowHeight + floor(virtH * 0.005)
             else
