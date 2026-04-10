@@ -32,14 +32,15 @@ end
 
 local function MountBGBDatabase(filepath)
     print(">> Mounting BGB Database from: " .. filepath)
-    local f = io.open(filepath, "r")
-    if not f then
-        print(c_yellow .. "[WARNING] " .. filepath .. " not found." .. c_reset)
+    
+    -- THE FIX: Use LÖVE's native virtual filesystem!
+    -- This works flawlessly on Windows, Linux, macOS, and inside packaged .love ZIPs
+    local content, sizeOrErr = love.filesystem.read(filepath)
+    
+    if not content then
+        print(c_yellow .. "[WARNING] " .. filepath .. " not found in LÖVE filesystem. Error: " .. tostring(sizeOrErr) .. c_reset)
         return {}
     end
-
-    local content = f:read("*all")
-    f:close()
 
     local data, _, err = json.decode(content)
     if err then
@@ -51,7 +52,7 @@ local function MountBGBDatabase(filepath)
     local count = 0
     for _ in pairs(index) do count = count + 1 end
     print(c_green .. "[SUCCESS] Indexed " .. count .. " paragraphs.\n" .. c_reset)
-    
+
     return index
 end
 
