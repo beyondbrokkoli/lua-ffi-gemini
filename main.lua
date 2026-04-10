@@ -73,7 +73,8 @@ local function updateTargetSide()
     local pad = 200
     if TargetState == STATE_ZEN then pad = 0
     elseif TargetState == STATE_OVERVIEW then pad = 6000 end
-
+    -- THE UI LOCK: Always force 0 padding for the Terminal!
+    if HUD.open then pad = 0 end
     local dist = (distScale * Cam_FOV) / CANVAS_H * PRESENTATION_ZOOM + pad
     local fx, fy, fz = sx + nx * dist, sy + ny * dist, sz + nz * dist
     local bx, by, bz = sx - nx * dist, sy - ny * dist, sz - nz * dist
@@ -136,7 +137,7 @@ function love.load()
 
         -- Pass the payload locally!
         SysText.InitSlideTextCache(sceneState.textPayload)
-
+        SysText.BakeTerminal()
         BuildCollisionPools()
         UpdateCameraBasis()
         Renderer.BakeStaticLighting()

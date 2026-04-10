@@ -114,7 +114,8 @@ function SysText.BakeTerminal()
     local pad = 200
     if TargetState == STATE_ZEN then pad = 0
     elseif TargetState == STATE_OVERVIEW then pad = 6000 end
-    
+    -- THE UI LOCK: Mirror the camera math perfectly!
+    pad = 0
     local activeZoom = PRESENTATION_ZOOM or 1.0
     local optDist = (distScale * Cam_FOV) / CANVAS_H * activeZoom + pad
     local text_depth = optDist - TERMINAL_THICKNESS
@@ -170,88 +171,6 @@ function SysText.BakeTerminal()
         orig_h = virtH
     }
     canvas:release()
-end
-function SysText.OLD_BakeTerminal()
-    local w = TERMINAL_W or 1600
-    local h = TERMINAL_H or 900
-
-    local distScale = max(h, w * (CANVAS_H / CANVAS_W))
-    local pad = 200
-    if TargetState == STATE_ZEN then
-        pad = 0
-    elseif TargetState == STATE_OVERVIEW then
-        pad = 6000
-    end
-
-    local activeZoom = PRESENTATION_ZOOM or 1.0
-    local optDist = (distScale * Cam_FOV) / CANVAS_H * activeZoom + pad
-    -- Offset is exactly 10 to match the physical thickness of the HUD_Mesh_ID. Prevents z-fighting and preserves 1:1 scale.
-    local text_depth = optDist - TERMINAL_THICKNESS
-    local optimal_scale = (Cam_FOV / text_depth)
-
-    -- INHERIT THE GOLDEN FONTS
-    local fonts = {
-        title = love.graphics.newFont(max(8, floor((h * 0.10) * optimal_scale))),
-        body = love.graphics.newFont(max(8, floor((h * 0.05) * optimal_scale)))
-    }
-
-    local virtW = max(1, floor(w * optimal_scale))
-    local virtH = max(1, floor(h * optimal_scale))
-
-    -- 1. GIANT CANVAS
-    local giantCanvas = love.graphics.newCanvas(virtW, virtH)
-    love.graphics.setCanvas(giantCanvas)
-    love.graphics.clear(0, 0, 0, 0)
-    love.graphics.setColor(1, 1, 1, 1)
-
-    local currentY = floor(virtH * 0.05)
-    local paddingX = floor(virtW * 0.05)
-    local wrapLimit = virtW - (paddingX * 2)
-
-    local ANSI_PATTERN = string.char(27) .. "%[[%d;]*m"
-
-    -- Render Line 1 as the big centered Title
-    local titleLine = HUD.lines[1] and HUD.lines[1]:gsub(ANSI_PATTERN, "") or "TERMINAL"
-    love.graphics.setFont(fonts.title)
-    love.graphics.printf(titleLine, paddingX, currentY, wrapLimit, "center")
-    currentY = currentY + fonts.title:getHeight() + floor(virtH * 0.02)
-
-    -- Render the rest as left-aligned Body
-    love.graphics.setFont(fonts.body)
-    for i = 2, #HUD.lines do
-        local cleanLine = HUD.lines[i]:gsub(ANSI_PATTERN, "")
-        local _, wrappedLines = fonts.body:getWrap(cleanLine, wrapLimit)
-        love.graphics.printf(cleanLine, paddingX, currentY, wrapLimit, "left")
-        currentY = currentY + (#wrappedLines * fonts.body:getHeight()) + floor(virtH * 0.01)
-    end
-
-    -- 2. THE CROP
-    local finalH = min(virtH, currentY + floor(virtH * 0.05))
-    local croppedCanvas = love.graphics.newCanvas(virtW, finalH)
-    love.graphics.setCanvas(croppedCanvas)
-    love.graphics.clear(0, 0, 0, 0)
-    love.graphics.setBlendMode("replace")
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(giantCanvas, 0, 0)
-    love.graphics.setBlendMode("alpha")
-    love.graphics.setCanvas()
-
-    if TerminalCache and TerminalCache._keepAlive then
-        TerminalCache._keepAlive:release()
-    end
-
-    local imgData = croppedCanvas:newImageData()
-    TerminalCache = {
-        ptr = ffi.cast("uint32_t*", imgData:getPointer()),
-        w = virtW, h = finalH,
-        _keepAlive = imgData,
-        text_z_offset = TERMINAL_THICKNESS,
-        opt_scale = optimal_scale,
-        orig_h = virtH -- CRITICAL: Pass the original uncropped height to match RenderText!
-    }
-
-    giantCanvas:release()
-    croppedCanvas:release()
 end
 
 function SysText.InitSlideTextCache(textPayload) 

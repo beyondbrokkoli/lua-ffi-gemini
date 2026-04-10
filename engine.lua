@@ -1,16 +1,6 @@
 local ffi = require("ffi")
 local Factory = require("sys_factory")
-
--- Inside engine.lua
-local Engine = {
-    terminal = {
-        open = false,
-        scroll = 0,     -- Keep this for long § text navigation
-        lines = {"> BGB SYSTEM ONLINE", "> DATABASE PENDING..."},
-        mode = "LOOKUP" -- Modes: "LOOKUP" or "SIM"
-    }
-}
-
+local Engine = {}
 -- Bounding Box Tracking for the whole scene
 local minX, minY, minZ = 1e30, 1e30, 1e30
 local maxX, maxY, maxZ = -1e30, -1e30, -1e30

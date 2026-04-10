@@ -129,14 +129,13 @@ TargetState = STATE_ZEN
 lerpT = 0
 pendingResize = false
 resizeTimer = 0
--- RELOCATED TERMINAL STATE (The HUD Registry)
 HUD = {
     open = false,
     scroll = 0,
-    lines = {"> BGB HUD INITIALIZED", "> READY FOR QUERY"},
+    -- Trigger Header (#) and Centering (~) to match the "Golden" search results
+    lines = {"# > BGB HUD INITIALIZED", "~ > READY FOR QUERY"},
     mode = "LOOKUP"
 }
-
 HUD_DIST = nil
 HUD_MESH_ID = nil
 HUD_Mesh_ID = nil
