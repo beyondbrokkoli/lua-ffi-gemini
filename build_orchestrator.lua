@@ -64,7 +64,7 @@ end
 local process_manifest = {
     ["sys_memory.lua"] = "BUILD/sys_memory.lua",
 --    ["sys_physics.lua"] = "BUILD/sys_physics.lua",
-    ["sys_renderer.lua"] = "BUILD/sys_renderer.lua",
+--    ["sys_renderer.lua"] = "BUILD/sys_renderer.lua",
     ["main.lua"] = "BUILD/main.lua",
     ["engine.lua"] = "BUILD/engine.lua",
 --    ["build_orchestrator.lua"] = "BUILD/build_orchestrator.lua",
@@ -73,7 +73,6 @@ local process_manifest = {
 --    ["sys_factory.lua"] = "BUILD/sys_factory.lua",
 --    ["conf.lua"] = "BUILD/conf.lua",
 --    ["bgb.lua"] = "BUILD/bgb.lua"
-
 }
 local raw_manifest = {} -- now empty because we broke free from json chains
 local function setup_build_dir(dir)

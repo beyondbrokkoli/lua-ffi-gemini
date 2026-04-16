@@ -20,6 +20,8 @@ TERMINAL_W = 1600
 TERMINAL_H = 900
 TERMINAL_THICKNESS = 40
 
+local sceneState = nil
+
 PRESENTATION_ZOOM = 1.0
 local function DiagnoseBGBGaps(bgbData)
     print("\n[AUDIT-INFO]: --- BGB GAP DIAGNOSTIC START ---")
@@ -178,7 +180,7 @@ function love.load()
     love.mouse.setRelativeMode(isMouseCaptured)
     Font_UI = love.graphics.newFont(14)
     Font_Terminal = love.graphics.newFont(16)
-    local sceneState = Engine.Boot()
+    sceneState = Engine.Boot()
     if sceneState then
         -- NO MORE MANIFEST GLOBAL!
         NumSlides = sceneState.NumSlides
@@ -371,7 +373,7 @@ function love.update(dt)
             if EngineState ~= STATE_CINEMATIC and EngineState ~= STATE_FREEFLY then
                 Cam_X, Cam_Y, Cam_Z, Cam_Yaw, Cam_Pitch = tX, tY, tZ, tYaw, tPitch
             end
-            SysText.InitSlideTextCache()
+            SysText.InitSlideTextCache(sceneState.textPayload)
             SysText.BakeTerminal()
             pendingResize = false
         end
